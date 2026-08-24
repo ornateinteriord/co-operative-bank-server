@@ -5,8 +5,37 @@ const branchSchema = mongoose.Schema(
     branch_id: {
       type: String,
       required: true,
+      unique: true,
     },
     branch_name: {
+      type: String,
+      required: true,
+    },
+    branch_ledger_acc: {
+      type: String,
+      default: null,
+    },
+    date: {
+      type: Date,
+      default: Date.now,
+    },
+    section_id: {
+      type: String,
+      default: "01-BANKING SECTION",
+    },
+    branch_id_no: {
+      type: String,
+      default: null,
+    },
+    full_id_no: {
+      type: String,
+      default: null,
+    },
+    branch_cust_id_no: {
+      type: String,
+      default: null,
+    },
+    door_no: {
       type: String,
       default: null,
     },
@@ -15,6 +44,10 @@ const branchSchema = mongoose.Schema(
       default: null,
     },
     address2: {
+      type: String,
+      default: null,
+    },
+    address3: {
       type: String,
       default: null,
     },
@@ -30,15 +63,19 @@ const branchSchema = mongoose.Schema(
       type: Number,
       default: null,
     },
-    contact_no1: {
+    phone_code: {
+      type: String,
+      default: "+91",
+    },
+    phone_number: {
       type: String,
       default: null,
     },
-    contact_no2: {
+    mobile_no: {
       type: String,
       default: null,
     },
-    contact_no3: {
+    email: {
       type: String,
       default: null,
     },
@@ -48,7 +85,7 @@ const branchSchema = mongoose.Schema(
     },
     date_of_operation: {
       type: Date,
-      default: null,
+      default: Date.now,
     },
     branch_prefix: {
       type: String,
@@ -57,6 +94,7 @@ const branchSchema = mongoose.Schema(
     status: {
       type: String,
       default: "active",
+      enum: ["active", "inactive"],
     },
   },
   { timestamps: true, collection: "branch_tbl" }
@@ -64,4 +102,3 @@ const branchSchema = mongoose.Schema(
 
 const BranchModel = mongoose.model("branch_tbl", branchSchema);
 module.exports = BranchModel;
-

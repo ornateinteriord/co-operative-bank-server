@@ -25,6 +25,14 @@ const ReceiptsRoutes = require("./routes/ReceiptsRoute");
 const PaymentsRoutes = require("./routes/PaymentsRoute");
 const CashTransactionRoutes = require("./routes/CashTransactionRoute");
 const DebugRoutes = require("./routes/DebugRoute");
+const ContraRoutes = require("./routes/ContraRoutes");
+const JournalRoutes = require("./routes/JournalRoutes");
+const BranchRoutes = require("./routes/BranchRoutes");
+const ShareRoutes = require("./routes/ShareRoutes");
+const StandingInstructionRoutes = require("./routes/StandingInstructionRoutes");
+const PayDemandRoutes = require("./routes/PayDemandRoutes");
+const DDCreationRoutes = require("./routes/DDCreationRoutes");
+const LoanRoutes = require("./routes/LoanRoutes");
 
 
 
@@ -38,6 +46,47 @@ const { startMaturityScheduler } = require("./utils/maturityScheduler");
 
 const app = express();
 const server = http.createServer(app);
+
+// ======================================================
+//        🛡️ CORS CONFIG (Supports Vite + ngrok + Localhost)
+// ======================================================
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:3000",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  "https://bms-foundation-web-ui.vercel.app",
+  "https://mscs-beige.vercel.app",
+  "https://biccsl.vercel.app",
+  "https://www.bmsfoundation.biz",
+  "https://bmsfoundation.biz"
+].filter(Boolean);
+
+const checkOrigin = (origin, callback) => {
+  if (!origin) return callback(null, true); // Postman / curl / server-to-server
+
+  const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  const isNgrok = origin.endsWith("ngrok-free.dev");
+
+  if (process.env.NODE_ENV !== "production" || isLocalhost || isNgrok || allowedOrigins.includes(origin)) {
+    return callback(null, true);
+  }
+
+  return callback(null, false);
+};
+
+const corsOptions = {
+  origin: checkOrigin,
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Requested-With", "Origin"],
+};
+
+// Apply CORS globally before any other middleware or DB calls
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 app.use(async (req, res, next) => {
   try {
@@ -57,26 +106,7 @@ app.use(async (req, res, next) => {
 // ======================================================
 const io = new Server(server, {
   cors: {
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // Postman / server-to-server
-
-      const isLocalhost = /^http:\/\/localhost:\d+$/.test(origin);
-      const isNgrok = origin?.endsWith("ngrok-free.dev");
-      const socketAllowedOrigins = [
-        process.env.FRONTEND_URL,
-        "https://bms-foundation-web-ui.vercel.app",
-        "https://mscs-beige.vercel.app",
-        "https://biccsl.vercel.app",
-        "https://www.bmsfoundation.biz",
-        "https://bmsfoundation.biz"
-      ].filter(Boolean);
-
-      if (isLocalhost || isNgrok || socketAllowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error(`WebSocket CORS BLOCKED: ${origin}`));
-    },
+    origin: checkOrigin,
     credentials: true
   }
 });
@@ -126,55 +156,6 @@ io.on("connection", (socket) => {
     }
   });
 });
-
-
-// ======================================================
-//        🛡️ CORS CONFIG (Supports Vite + ngrok)
-// ======================================================
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  "https://bms-foundation-web-ui.vercel.app",
-  "https://mscs-beige.vercel.app",
-  "https://biccsl.vercel.app",
-  "https://www.bmsfoundation.biz",
-  "https://bmsfoundation.biz"
-].filter(Boolean);
-
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // Postman / server-to-server
-
-      const isLocalhost = /^http:\/\/localhost:\d+$/.test(origin);
-      const isNgrok = origin.endsWith("ngrok-free.dev");
-
-      if (isLocalhost || isNgrok || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error(`CORS BLOCKED: ${origin}`));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
-
-
-app.options("*", cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    const isLocalhost = /^http:\/\/localhost:\d+$/.test(origin);
-    const isNgrok = origin.endsWith("ngrok-free.dev");
-    if (isLocalhost || isNgrok || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    return callback(new Error(`CORS BLOCKED: ${origin}`));
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
 
 // ======================================================
 // ⚠️ IMPORTANT: RAW BODY FOR CASHFREE WEBHOOKS
@@ -243,6 +224,14 @@ app.use("/member", NidhiMemberRoutes);
 app.use("/banking", ReceiptsRoutes);
 app.use("/banking", PaymentsRoutes);
 app.use("/banking/cash-transactions", CashTransactionRoutes);
+app.use("/banking", ContraRoutes);
+app.use("/banking", JournalRoutes);
+app.use("/banking", StandingInstructionRoutes);
+app.use("/banking", PayDemandRoutes);
+app.use("/banking", DDCreationRoutes);
+app.use("/admin", BranchRoutes);
+app.use("/admin", ShareRoutes);
+app.use("/admin", LoanRoutes);
 app.use("/debug", DebugRoutes);
 
 
