@@ -36,13 +36,19 @@ const createLoan = async (req, res) => {
       business_name,
       business_gstin,
       annual_turnover,
+      vehicle_reg_no,
+      vehicle_model,
+      education_institute,
+      education_course,
+      agri_land_details,
+      agri_crop_type,
       purpose_of_loan,
     } = req.body;
 
     if (!loan_type) {
       return res.status(400).json({
         success: false,
-        message: "Loan type is required (Personal, Mortgage, Gold, Business, House, Other)",
+        message: "Loan type is required",
       });
     }
 
@@ -69,6 +75,11 @@ const createLoan = async (req, res) => {
         loan_type === "Personal" ? "PL" :
         loan_type === "Mortgage" ? "ML" :
         loan_type === "Business" ? "BL" :
+        loan_type === "Vehicle" ? "VL" :
+        loan_type === "Education" ? "EL" :
+        loan_type === "Agriculture" ? "AL" :
+        loan_type === "Pigmi" ? "PGL" :
+        loan_type === "Pigmi Gold" ? "PGLD" :
         loan_type === "House" ? "HL" : "OL";
 
       const lastLoan = await LoanModel.findOne({ loan_type }).sort({ createdAt: -1 });
@@ -125,6 +136,12 @@ const createLoan = async (req, res) => {
       business_name,
       business_gstin,
       annual_turnover: annual_turnover ? Number(annual_turnover) : null,
+      vehicle_reg_no,
+      vehicle_model,
+      education_institute,
+      education_course,
+      agri_land_details,
+      agri_crop_type,
       purpose_of_loan,
     });
 

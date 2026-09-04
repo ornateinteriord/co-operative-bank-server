@@ -29,29 +29,46 @@ const getInterestsByAccountGroup = async (req, res) => {
             });
         }
 
-        // Map account_group_name to plan_type
-        // The interest model uses plan_type enum: ["FD", "RD", "PIGMY", "SAVING", "PIGMY SAVING", "PIGMY LOAN", "PIGMY GOLD LOAN"]
-        const planTypeMapping = {
-            "FIXED DEPOSIT": "FD",
-            "FD": "FD",
-            "RECURRING DEPOSIT": "RD",
-            "RD": "RD",
-            "PIGMY": "PIGMY",
-            "PIGMY DEPOSIT": "PIGMY",
-            "SAVING": "SAVING",
-            "SAVINGS": "SAVING",
-            "SAVINGS BANK": "SAVING",
-            "SB": "SAVING",
-            "PIGMY SAVING": "PIGMY SAVING",
-            "PIGMY LOAN": "PIGMY LOAN",
-            "PIGMY GOLD LOAN": "PIGMY GOLD LOAN"
-        };
-
-        // Try to match the account group name (case-insensitive)
         const groupNameUpper = accountGroup.account_group_name?.toUpperCase() || "";
-        const planType = planTypeMapping[groupNameUpper] || groupNameUpper;
 
-        // Find interests where plan_type matches
+        let planType;
+        if (groupNameUpper.includes("PIGMI GOLD LOAN") || groupNameUpper.includes("PIGMY GOLD LOAN") || (groupNameUpper.includes("GOLD") && groupNameUpper.includes("PIGM"))) {
+            planType = "PIGMY GOLD LOAN";
+        } else if (groupNameUpper.includes("PIGMI LOAN") || groupNameUpper.includes("PIGMY LOAN") || (groupNameUpper.includes("LOAN") && groupNameUpper.includes("PIGM"))) {
+            planType = "PIGMY LOAN";
+        } else if (groupNameUpper.includes("PIGMI SAVING") || groupNameUpper.includes("PIGMY SAVING")) {
+            planType = "PIGMY SAVING";
+        } else if (groupNameUpper.includes("LOAN") || groupNameUpper.includes("OVERDRAFT") || accountGroup.account_book_id === "ABK026") {
+            // General loans use year-based PIGMY interest slabs (1 YEAR, 2 YEAR, 3 YEAR)
+            planType = "PIGMY_GENERAL_LOAN";
+        } else {
+            const planTypeMapping = {
+                "FIXED DEPOSIT": "FD",
+                "FD": "FD",
+                "RECURRING DEPOSIT": "RD",
+                "RD": "RD",
+                "PIGMY": "PIGMY",
+                "PIGMY DEPOSIT": "PIGMY",
+                "SAVING": "SAVING",
+                "SAVINGS": "SAVING",
+                "SAVINGS BANK": "SAVING",
+                "SB": "SAVING",
+                "CURRENT": "CURRENT",
+                "CURRENT ACCOUNT": "CURRENT",
+                "CA": "CURRENT"
+            };
+
+            planType = planTypeMapping[groupNameUpper];
+            if (!planType) {
+                if (groupNameUpper.includes("FIXED")) planType = "FD";
+                else if (groupNameUpper.includes("RECURRING")) planType = "RD";
+                else if (groupNameUpper.includes("SAVING")) planType = "SAVING";
+                else if (groupNameUpper.includes("CURRENT")) planType = "CURRENT";
+                else if (groupNameUpper.includes("PIGMY") || groupNameUpper.includes("PIGMI")) planType = "PIGMY";
+                else planType = groupNameUpper;
+            }
+        }
+
         // For SB (SAVING) and CA (CURRENT), we don't allow interest rates as per user request
         if (planType === "SAVING" || planType === "CURRENT") {
             return res.status(200).json({
@@ -61,10 +78,43 @@ const getInterestsByAccountGroup = async (req, res) => {
             });
         }
 
-        const interests = await InterestModel.find({
-            plan_type: planType,
-            status: "active"
-        }).sort({ createdAt: -1 });
+        let interestFilter;
+        if (planType === "PIGMY GOLD LOAN") {
+            interestFilter = {
+                $or: [
+                    { plan_type: "PIGMY GOLD LOAN" },
+                    { interest_name: /PIGM.*GOLD.*LOAN/i },
+                    { ref_id: account_group_id }
+                ],
+                status: "active"
+            };
+        } else if (planType === "PIGMY LOAN") {
+            interestFilter = {
+                $or: [
+                    { plan_type: "PIGMY LOAN" },
+                    { interest_name: /^PIGM(I|Y)\s+LOAN$/i },
+                    { ref_id: account_group_id }
+                ],
+                status: "active"
+            };
+        } else if (planType === "PIGMY_GENERAL_LOAN" || planType === "PIGMY") {
+            interestFilter = {
+                plan_type: "PIGMY",
+                interest_name: { $nin: ["PIGMI LOAN", "PIGMI GOLD LOAN", "PIGMY LOAN", "PIGMY GOLD LOAN"] },
+                duration: { $gt: 0 },
+                status: "active"
+            };
+        } else {
+            interestFilter = {
+                $or: [
+                    { plan_type: planType },
+                    { ref_id: account_group_id }
+                ],
+                status: "active"
+            };
+        }
+
+        const interests = await InterestModel.find(interestFilter).sort({ duration: 1, createdAt: -1 });
 
         res.status(200).json({
             success: true,
@@ -135,35 +185,58 @@ const createAccount = async (req, res) => {
             });
         }
 
-        // Auto-increment account_id with ACC prefix
-        const lastAccount = await AccountsModel.findOne()
-            .sort({ account_id: -1 })
-            .limit(1);
+        const groupName = accountGroup.account_group_name?.toUpperCase() || "";
+        const isLoan = accountGroup.account_book_id === "ABK026" || groupName.includes("LOAN") || groupName.includes("OVERDRAFT");
 
-        let newAccountId = "ACC000001"; // Default starting ID
-        if (lastAccount && lastAccount.account_id) {
-            // Extract numeric part from format "ACCXXXXXX" and increment
-            const numericPart = lastAccount.account_id.replace(/^ACC/, '');
-            const lastId = parseInt(numericPart);
-            if (!isNaN(lastId)) {
-                const nextId = lastId + 1;
-                // Format with ACC prefix and pad to 6 digits
-                newAccountId = `ACC${nextId.toString().padStart(6, '0')}`;
+        // Auto-increment account_id: LOAN prefix for loan accounts, ACC prefix for regular accounts
+        let newAccountId;
+        if (isLoan) {
+            const lastLoanAccount = await AccountsModel.findOne({
+                account_id: { $regex: /^LOAN/i }
+            }).sort({ account_id: -1 }).limit(1);
+
+            if (lastLoanAccount && lastLoanAccount.account_id) {
+                const numericPart = lastLoanAccount.account_id.replace(/^LOAN/i, '');
+                const lastId = parseInt(numericPart);
+                if (!isNaN(lastId)) {
+                    newAccountId = `LOAN${(lastId + 1).toString().padStart(6, '0')}`;
+                } else {
+                    newAccountId = "LOAN000001";
+                }
+            } else {
+                newAccountId = "LOAN000001";
+            }
+        } else {
+            const lastAccount = await AccountsModel.findOne({
+                account_id: { $regex: /^ACC/i }
+            }).sort({ account_id: -1 }).limit(1);
+
+            if (lastAccount && lastAccount.account_id) {
+                const numericPart = lastAccount.account_id.replace(/^ACC/i, '');
+                const lastId = parseInt(numericPart);
+                if (!isNaN(lastId)) {
+                    newAccountId = `ACC${(lastId + 1).toString().padStart(6, '0')}`;
+                } else {
+                    newAccountId = "ACC000001";
+                }
+            } else {
+                newAccountId = "ACC000001";
             }
         }
 
-        // Auto-increment account_no based on member_id and account_type
-        // Format: [member_id][group_suffix][sequence]
-        // Example: For member 10512 with PIGMY (AGP005), account_no could be 105600001
-        // The pattern seems to be: first 3 digits of member_id + group sequence number + running number
-
-        // Professional Account Number Generation
-        // Format: [PREFIX][SEQUENCE]
-        // Example: SB000001, RD000001, PIG000001
-        
-        const groupName = accountGroup.account_group_name?.toUpperCase() || "";
-        let typePrefix = "ACC";
-        if (groupName.includes("SAVING") || groupName === "SB") typePrefix = "SB";
+        // Account Number Prefix Generation based on Account Group
+        let typePrefix = isLoan ? "LN" : "ACC";
+        if (groupName.includes("PERSONAL") && groupName.includes("LOAN")) typePrefix = "PL";
+        else if (groupName.includes("MORTGAGE")) typePrefix = "ML";
+        else if (groupName.includes("PIGMY GOLD LOAN") || (groupName.includes("PIGMI") && groupName.includes("GOLD"))) typePrefix = "PGLD";
+        else if (groupName.includes("GOLD") && groupName.includes("LOAN")) typePrefix = "GL";
+        else if (groupName.includes("BUSINESS") && groupName.includes("LOAN")) typePrefix = "BL";
+        else if (groupName.includes("VEHICLE")) typePrefix = "VL";
+        else if (groupName.includes("EDUCATION")) typePrefix = "EL";
+        else if (groupName.includes("AGRICULTURE") || groupName.includes("AGRI")) typePrefix = "AL";
+        else if (groupName.includes("PIGMY LOAN") || groupName.includes("PIGMI LOAN")) typePrefix = "PGL";
+        else if (groupName.includes("OVERDRAFT") || groupName === "OD") typePrefix = "OD";
+        else if (groupName.includes("SAVING") || groupName === "SB") typePrefix = "SB";
         else if (groupName.includes("CURRENT") || groupName === "CA" || groupName === "CUR") typePrefix = "CA";
         else if (groupName.includes("RECURRING") || groupName === "RD") typePrefix = "RD";
         else if (groupName.includes("FIXED") || groupName === "FD") typePrefix = "FD";
@@ -173,12 +246,11 @@ const createAccount = async (req, res) => {
         
         // Find the last account with this prefix to determine next sequence
         const lastAccountWithPrefix = await AccountsModel.findOne({
-            account_no: { $regex: new RegExp(`^${typePrefix}`) }
+            account_no: { $regex: new RegExp(`^${typePrefix}`, 'i') }
         }).sort({ account_no: -1 }).limit(1);
 
         let newAccountNo;
         if (lastAccountWithPrefix && lastAccountWithPrefix.account_no) {
-            // Extract the sequence part (everything after prefix)
             const sequencePart = lastAccountWithPrefix.account_no.substring(typePrefix.length);
             const lastSeq = parseInt(sequencePart);
             if (!isNaN(lastSeq)) {

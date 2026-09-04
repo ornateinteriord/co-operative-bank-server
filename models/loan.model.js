@@ -15,7 +15,19 @@ const loanSchema = mongoose.Schema(
     loan_type: {
       type: String,
       required: true,
-      enum: ["Personal", "Mortgage", "Gold", "Business", "House", "Other"],
+      enum: [
+        "Personal",
+        "Mortgage",
+        "Gold",
+        "Business",
+        "Vehicle",
+        "Education",
+        "Agriculture",
+        "Pigmi",
+        "Pigmi Gold",
+        "House",
+        "Other",
+      ],
     },
     application_date: {
       type: Date,
@@ -134,6 +146,30 @@ const loanSchema = mongoose.Schema(
     },
     annual_turnover: {
       type: Number,
+      default: null,
+    },
+    vehicle_reg_no: {
+      type: String,
+      default: null,
+    },
+    vehicle_model: {
+      type: String,
+      default: null,
+    },
+    education_institute: {
+      type: String,
+      default: null,
+    },
+    education_course: {
+      type: String,
+      default: null,
+    },
+    agri_land_details: {
+      type: String,
+      default: null,
+    },
+    agri_crop_type: {
+      type: String,
       default: null,
     },
     purpose_of_loan: {

@@ -379,40 +379,47 @@ const getMemberInterestsByAccountGroup = async (req, res) => {
             });
         }
 
-        const planTypeMapping = {
-            "FIXED DEPOSIT": "FD",
-            "FD": "FD",
-            "RECURRING DEPOSIT": "RD",
-            "RD": "RD",
-            "PIGMY": "PIGMY",
-            "PIGMY DEPOSIT": "PIGMY",
-            "SAVING": "SAVING",
-            "SAVINGS": "SAVING",
-            "SAVINGS BANK": "SAVING",
-            "SB": "SAVING",
-            "CURRENT": "CURRENT",
-            "CURRENT ACCOUNT": "CURRENT",
-            "CA": "CURRENT",
-            "PIGMY SAVING": "PIGMY SAVING",
-            "PIGMY LOAN": "PIGMY LOAN",
-            "PIGMY GOLD LOAN": "PIGMY GOLD LOAN"
-        };
-
         const groupNameUpper = accountGroup.account_group_name?.toUpperCase() || "";
-        let planType = planTypeMapping[groupNameUpper];
-        
-        console.log(`[MemberInterests] Group: ${groupNameUpper}, Mapped PlanType: ${planType}`);
 
-        // If no direct mapping, try partial matches
-        if (!planType) {
-            if (groupNameUpper.includes("FIXED")) planType = "FD";
-            else if (groupNameUpper.includes("RECURRING")) planType = "RD";
-            else if (groupNameUpper.includes("SAVING")) planType = "SAVING";
-            else if (groupNameUpper.includes("CURRENT")) planType = "CURRENT";
-            else if (groupNameUpper.includes("PIGMY")) planType = "PIGMY";
-            else planType = groupNameUpper;
-            console.log(`[MemberInterests] Fallback PlanType: ${planType}`);
+        let planType;
+        if (groupNameUpper.includes("PIGMI GOLD LOAN") || groupNameUpper.includes("PIGMY GOLD LOAN") || (groupNameUpper.includes("GOLD") && groupNameUpper.includes("PIGM"))) {
+            planType = "PIGMY GOLD LOAN";
+        } else if (groupNameUpper.includes("PIGMI LOAN") || groupNameUpper.includes("PIGMY LOAN") || (groupNameUpper.includes("LOAN") && groupNameUpper.includes("PIGM"))) {
+            planType = "PIGMY LOAN";
+        } else if (groupNameUpper.includes("PIGMI SAVING") || groupNameUpper.includes("PIGMY SAVING")) {
+            planType = "PIGMY SAVING";
+        } else if (groupNameUpper.includes("LOAN") || groupNameUpper.includes("OVERDRAFT") || accountGroup.account_book_id === "ABK026") {
+            // General loans use year-based PIGMY interest slabs (1 YEAR, 2 YEAR, 3 YEAR)
+            planType = "PIGMY_GENERAL_LOAN";
+        } else {
+            const planTypeMapping = {
+                "FIXED DEPOSIT": "FD",
+                "FD": "FD",
+                "RECURRING DEPOSIT": "RD",
+                "RD": "RD",
+                "PIGMY": "PIGMY",
+                "PIGMY DEPOSIT": "PIGMY",
+                "SAVING": "SAVING",
+                "SAVINGS": "SAVING",
+                "SAVINGS BANK": "SAVING",
+                "SB": "SAVING",
+                "CURRENT": "CURRENT",
+                "CURRENT ACCOUNT": "CURRENT",
+                "CA": "CURRENT"
+            };
+
+            planType = planTypeMapping[groupNameUpper];
+            if (!planType) {
+                if (groupNameUpper.includes("FIXED")) planType = "FD";
+                else if (groupNameUpper.includes("RECURRING")) planType = "RD";
+                else if (groupNameUpper.includes("SAVING")) planType = "SAVING";
+                else if (groupNameUpper.includes("CURRENT")) planType = "CURRENT";
+                else if (groupNameUpper.includes("PIGMY") || groupNameUpper.includes("PIGMI")) planType = "PIGMY";
+                else planType = groupNameUpper;
+            }
         }
+
+        console.log(`[MemberInterests] Group: ${groupNameUpper}, Mapped PlanType: ${planType}`);
 
         // For SB (SAVING) and CA (CURRENT), we don't allow interest rates as per user request
         if (planType === "SAVING" || planType === "CURRENT") {
@@ -423,13 +430,43 @@ const getMemberInterestsByAccountGroup = async (req, res) => {
             });
         }
 
-        const interests = await InterestModel.find({
-            $or: [
-                { plan_type: planType },
-                { ref_id: account_group_id } // Also support direct ID matching
-            ],
-            status: { $regex: /^active$/i }
-        }).sort({ createdAt: -1 });
+        let interestFilter;
+        if (planType === "PIGMY GOLD LOAN") {
+            interestFilter = {
+                $or: [
+                    { plan_type: "PIGMY GOLD LOAN" },
+                    { interest_name: /PIGM.*GOLD.*LOAN/i },
+                    { ref_id: account_group_id }
+                ],
+                status: { $regex: /^active$/i }
+            };
+        } else if (planType === "PIGMY LOAN") {
+            interestFilter = {
+                $or: [
+                    { plan_type: "PIGMY LOAN" },
+                    { interest_name: /^PIGM(I|Y)\s+LOAN$/i },
+                    { ref_id: account_group_id }
+                ],
+                status: { $regex: /^active$/i }
+            };
+        } else if (planType === "PIGMY_GENERAL_LOAN" || planType === "PIGMY") {
+            interestFilter = {
+                plan_type: "PIGMY",
+                interest_name: { $nin: ["PIGMI LOAN", "PIGMI GOLD LOAN", "PIGMY LOAN", "PIGMY GOLD LOAN"] },
+                duration: { $gt: 0 },
+                status: { $regex: /^active$/i }
+            };
+        } else {
+            interestFilter = {
+                $or: [
+                    { plan_type: planType },
+                    { ref_id: account_group_id }
+                ],
+                status: { $regex: /^active$/i }
+            };
+        }
+
+        const interests = await InterestModel.find(interestFilter).sort({ duration: 1, createdAt: -1 });
 
         console.log(`[MemberInterests] Found ${interests.length} interests for ${planType}`);
 
