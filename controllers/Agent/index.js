@@ -495,11 +495,94 @@ const getCollectionTransactions = async (req, res) => {
     }
 };
 
+// Get all accounts/loans introduced by this agent (introducer = agentId)
+const getIntroducerAccounts = async (req, res) => {
+    try {
+        const { agentId } = req.params;
+
+        if (!agentId) {
+            return res.status(400).json({
+                success: false,
+                message: "Agent ID is required"
+            });
+        }
+
+        // Find all accounts/loans where this agent is the introducer
+        const allRecords = await AccountsModel.find({
+            introducer: agentId
+        }).sort({ date_of_opening: -1 });
+
+        // Get account groups to determine type names
+        const AccountGroupModel = require("../../models/accountGroup.model");
+        const accountGroups = await AccountGroupModel.find({});
+        const groupMap = {};
+        accountGroups.forEach(g => {
+            groupMap[g.account_group_id] = g.account_group_name;
+        });
+
+        // Fetch member details and separate into accounts vs loans
+        const accounts = [];
+        const loans = [];
+
+        await Promise.all(
+            allRecords.map(async (record) => {
+                const member = await MemberModel.findOne({ member_id: record.member_id });
+                const groupName = groupMap[record.account_type] || record.account_type || '';
+                const groupNameUpper = groupName.toUpperCase();
+                const isLoan = record.account_id?.startsWith('LOAN') ||
+                    groupNameUpper.includes('LOAN') ||
+                    groupNameUpper.includes('OVERDRAFT');
+
+                const entry = {
+                    account_id: record.account_id,
+                    account_no: record.account_no,
+                    account_type: record.account_type,
+                    account_type_name: groupName || record.account_type,
+                    member_id: record.member_id,
+                    member_name: member ? member.name : 'N/A',
+                    member_mobile: member ? (member.contactno || member.mobile) : '',
+                    date_of_opening: record.date_of_opening,
+                    date_of_maturity: record.date_of_maturity,
+                    account_amount: record.account_amount,
+                    interest_rate: record.interest_rate,
+                    duration: record.duration,
+                    status: record.status,
+                    introducer: record.introducer
+                };
+
+                if (isLoan) {
+                    loans.push(entry);
+                } else {
+                    accounts.push(entry);
+                }
+            })
+        );
+
+        res.status(200).json({
+            success: true,
+            message: "Introducer accounts fetched successfully",
+            data: {
+                accounts,
+                loans,
+                total: allRecords.length
+            }
+        });
+    } catch (error) {
+        console.error("Error fetching introducer accounts:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch introducer accounts",
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     getAssignedAccounts,
     collectPayment,
     makePayment,
     getCollectionTransactions,
     getCommissionTransactions,
-    withdrawCommission
+    withdrawCommission,
+    getIntroducerAccounts
 };

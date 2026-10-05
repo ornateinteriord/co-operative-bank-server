@@ -2,6 +2,7 @@ const MemberModel = require("../../../models/Users/Member");
 const mongoose = require("mongoose");
 const moment = require("moment");
 const AdminModel = require("../../../models/Admin/Admin");
+const AgentModel = require("../../../models/agent.model");
 const TransactionModel = require("../../../models/Transaction/Transaction");
 const PayoutModel = require("../../../models/Payout/Payout");
 const { triggerMLMCommissions } = require("../Payout/PayoutController");
@@ -10,21 +11,74 @@ const AddOnPackageModel = require("../../../models/Packages/AddOnPackage");
 
 const getMemberDetails = async (req, res) => {
   try {
-    const id = req.user.id;
+    const paramId = req.params.id;
+    const tokenUserId = req.user?.id;
+    const searchId = (paramId && paramId !== "undefined" && paramId !== "null") ? paramId : tokenUserId;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid User ID"
-      });
+    let foundUser = null;
+
+    // 1. Try finding by ObjectId if valid
+    if (searchId && mongoose.Types.ObjectId.isValid(searchId)) {
+      foundUser = await MemberModel.findById(searchId) ||
+                  await AdminModel.findById(searchId) ||
+                  await AgentModel.findById(searchId);
     }
 
-    const foundUser = await MemberModel.findById(id) || await AdminModel.findById(id);
+    // 2. Try finding by string ID (Member_id, agent_id, username)
+    if (!foundUser && searchId) {
+      foundUser = await MemberModel.findOne({ Member_id: searchId }) ||
+                  await AgentModel.findOne({ agent_id: searchId }) ||
+                  await AgentModel.findOne({ agent_id: searchId.toUpperCase() }) ||
+                  await AdminModel.findOne({ username: searchId });
+    }
+
+    // 3. Fallback to token user id
+    if (!foundUser && tokenUserId) {
+      if (mongoose.Types.ObjectId.isValid(tokenUserId)) {
+        foundUser = await MemberModel.findById(tokenUserId) ||
+                    await AdminModel.findById(tokenUserId) ||
+                    await AgentModel.findById(tokenUserId);
+      }
+      if (!foundUser) {
+        foundUser = await MemberModel.findOne({ Member_id: tokenUserId }) ||
+                    await AgentModel.findOne({ agent_id: tokenUserId });
+      }
+    }
+
+    // 4. Fallback to token memberId or userId
+    if (!foundUser && req.user?.memberId) {
+      foundUser = await MemberModel.findOne({ Member_id: req.user.memberId }) ||
+                  await AgentModel.findOne({ agent_id: req.user.memberId }) ||
+                  await AgentModel.findOne({ agent_id: req.user.memberId.toUpperCase() });
+    }
+    if (!foundUser && req.user?.userId) {
+      foundUser = await MemberModel.findOne({ Member_id: req.user.userId }) ||
+                  await AgentModel.findOne({ agent_id: req.user.userId }) ||
+                  await AdminModel.findOne({ username: req.user.userId });
+    }
 
     if (!foundUser) {
       return res.status(404).json({
         success: false,
         message: "User not found"
+      });
+    }
+
+    // Handle Agent user
+    if (foundUser instanceof AgentModel || foundUser.agent_id || foundUser.role === "AGENT") {
+      const agentObj = foundUser.toObject ? foundUser.toObject() : foundUser;
+      const responseData = {
+        ...agentObj,
+        Name: agentObj.name || agentObj.Name || "Agent",
+        Member_id: agentObj.agent_id || agentObj.Member_id || "",
+        member_id: agentObj.agent_id || "",
+        email: agentObj.emailid || agentObj.email || "",
+        mobileno: agentObj.mobile || agentObj.mobileno || "",
+        role: agentObj.role || "AGENT"
+      };
+      return res.status(200).json({
+        success: true,
+        data: responseData
       });
     }
 
@@ -298,19 +352,26 @@ const UpdateMemberDetails = async (req, res) => {
 
     const { oldPassword, newPassword, ...updateData } = req.body;
 
-    // Find the user by Member_id (not _id)
-    const foundUser = await MemberModel.findOne({ Member_id: memberId });
+    // Find the user by Member_id, agent_id, or _id
+    let foundUser = await MemberModel.findOne({ Member_id: memberId });
+    let isAgent = false;
+    if (!foundUser) {
+      foundUser = await AgentModel.findOne({ agent_id: memberId }) ||
+                  (mongoose.Types.ObjectId.isValid(memberId) ? await AgentModel.findById(memberId) : null);
+      if (foundUser) isAgent = true;
+    }
 
     if (!foundUser) {
       return res.status(404).json({
         success: false,
-        message: "Member not found",
+        message: "User not found",
       });
     }
 
     // Handle password update
     if (oldPassword && newPassword) {
-      if (oldPassword !== foundUser.password) {
+      const currentPassword = foundUser.password || foundUser.PASSWORD || foundUser.mobile;
+      if (oldPassword !== currentPassword) {
         return res.status(401).json({
           success: false,
           message: "Old password is incorrect",
@@ -322,14 +383,27 @@ const UpdateMemberDetails = async (req, res) => {
           message: "New password cannot be the same as old password",
         });
       }
-      if (newPassword.length <= 5) {
+      if (newPassword.length <= 3) {
         return res.status(400).json({
           success: false,
-          message: "Password must be at least 6 characters long",
+          message: "Password must be at least 4 characters long",
         });
       }
 
       updateData.password = newPassword;
+    }
+
+    if (isAgent) {
+      const updatedAgent = await AgentModel.findByIdAndUpdate(
+        foundUser._id,
+        { $set: updateData },
+        { new: true, runValidators: true }
+      );
+      return res.status(200).json({
+        success: true,
+        message: "Agent updated successfully",
+        data: updatedAgent
+      });
     }
 
     // Update user details

@@ -32,7 +32,6 @@ const ShareRoutes = require("./routes/ShareRoutes");
 const StandingInstructionRoutes = require("./routes/StandingInstructionRoutes");
 const PayDemandRoutes = require("./routes/PayDemandRoutes");
 const DDCreationRoutes = require("./routes/DDCreationRoutes");
-const LoanRoutes = require("./routes/LoanRoutes");
 
 
 
@@ -231,7 +230,6 @@ app.use("/banking", PayDemandRoutes);
 app.use("/banking", DDCreationRoutes);
 app.use("/admin", BranchRoutes);
 app.use("/admin", ShareRoutes);
-app.use("/admin", LoanRoutes);
 app.use("/debug", DebugRoutes);
 
 

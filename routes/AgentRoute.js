@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { getAgentById } = require("../controllers/Admin/Agent");
 const { createAccount } = require("../controllers/Admin/Account");
-const { getAssignedAccounts, collectPayment, makePayment, getCollectionTransactions, getCommissionTransactions, withdrawCommission } = require("../controllers/Agent");
+const { getAssignedAccounts, collectPayment, makePayment, getCollectionTransactions, getCommissionTransactions, withdrawCommission, getIntroducerAccounts } = require("../controllers/Agent");
 const Authenticated = require("../middlewares/auth");
 const authorizeRoles = require("../middlewares/authorizeRole");
 
@@ -17,5 +17,8 @@ router.post('/make-payment/:agentId', Authenticated, authorizeRoles(["AGENT"]), 
 // Commission routes
 router.get('/get-commission-transactions/:agentId', Authenticated, authorizeRoles(["AGENT"]), getCommissionTransactions)
 router.post('/withdraw-commission/:agentId', Authenticated, authorizeRoles(["AGENT"]), withdrawCommission)
+
+// Introducer accounts/loans routes (accounts & loans where agent is introducer)
+router.get('/get-introducer-accounts/:agentId', Authenticated, authorizeRoles(["AGENT"]), getIntroducerAccounts)
 
 module.exports = router;

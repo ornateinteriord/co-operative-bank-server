@@ -86,6 +86,14 @@ const agentSchema = mongoose.Schema(
       type: String,
       default: null,
     },
+    password: {
+      type: String,
+      default: null,
+    },
+    role: {
+      type: String,
+      default: "AGENT",
+    },
   },
   { timestamps: true, collection: "agent_tbl" }
 );

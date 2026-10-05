@@ -1,5 +1,6 @@
 const AdminModel = require("../../models/Admin/Admin");
 const MemberModel = require("../../models/Users/Member");
+const AgentModel = require("../../models/agent.model");
 const jwt = require("jsonwebtoken");
 const {
   sendMail,
@@ -235,17 +236,48 @@ const resetPassword = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { username, password } = req.body;
-    const user = await MemberModel.findOne({ Member_id: username });
-    const admin = await AdminModel.findOne({ username });
-    const foundUser = user || admin;
+    const trimmedUsername = username ? username.trim() : "";
+
+    const user = await MemberModel.findOne({ Member_id: trimmedUsername });
+    const admin = await AdminModel.findOne({ username: trimmedUsername });
+
+    let agent = null;
+    if (!user && !admin && trimmedUsername) {
+      agent = await AgentModel.findOne({
+        $or: [
+          { agent_id: trimmedUsername },
+          { agent_id: trimmedUsername.toUpperCase() },
+          { mobile: trimmedUsername },
+          { emailid: trimmedUsername.toLowerCase() }
+        ]
+      });
+    }
+
+    const foundUser = user || admin || agent;
     if (!foundUser) {
       return res
         .status(404)
-        .json({ success: false, message: "User or Admin not found" });
+        .json({ success: false, message: "User, Admin, or Agent not found" });
     }
-    const userRole = user instanceof MemberModel ? "USER" : (admin.role || "ADMIN");
-    const isPasswordValid =
-      password === (foundUser.PASSWORD || foundUser.password);
+
+    let userRole = "USER";
+    if (user) {
+      userRole = "USER";
+    } else if (admin) {
+      userRole = admin.role || "ADMIN";
+    } else if (agent) {
+      userRole = agent.role || "AGENT";
+
+      if (agent.status && agent.status.toLowerCase() === "inactive") {
+        return res.status(403).json({
+          success: false,
+          message: "Agent account is inactive. Please contact administrator."
+        });
+      }
+    }
+
+    const userPassword = foundUser.PASSWORD || foundUser.password || foundUser.mobile;
+    const isPasswordValid = password === userPassword;
     if (!isPasswordValid) {
       return res
         .status(401)
@@ -256,27 +288,27 @@ const login = async (req, res) => {
       {
         id: foundUser._id,
         role: userRole,
-        memberId: foundUser?.Member_id ?? null,
+        memberId: foundUser?.Member_id || foundUser?.agent_id || null,
+        userId: foundUser?.agent_id || foundUser?.Member_id || foundUser?.username || null,
+        user_name: foundUser?.name || foundUser?.Name || foundUser?.username || null,
+        branch_code: foundUser?.branch_id || foundUser?.branch_code || 'BRN001',
       },
       process.env.JWT_SECRET,
       { expiresIn: "24h" }
     );
     return res.status(200).json({
-
       success: true,
       role: userRole,
       user: foundUser,
       token,
-      message: `${userRole.charAt(0).toUpperCase() + userRole.slice(1).toLowerCase()
-        } login successful`,
-
+      message: `${userRole.charAt(0).toUpperCase() + userRole.slice(1).toLowerCase()} login successful`,
     });
 
   } catch (error) {
     console.error("Login Error:", error);
     return res
       .status(500)
-      .json({ success: false, message: error });
+      .json({ success: false, message: error.message || error });
   }
 };
 

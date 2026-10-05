@@ -51,7 +51,16 @@ const getMyAccounts = async (req, res) => {
                             account_type: "$account_type",
                             account_amount: "$account_amount",
                             status: "$status",
-                            date_of_opening: "$date_of_opening"
+                            date_of_opening: "$date_of_opening",
+                            interest_rate: "$interest_rate",
+                            duration: "$duration",
+                            date_of_maturity: "$date_of_maturity",
+                            branch_id: "$branch_id",
+                            account_operation: "$account_operation",
+                            introducer: "$introducer",
+                            assigned_to: "$assigned_to",
+                            joint_member: "$joint_member",
+                            ref_id: "$ref_id"
                         }
                     }
                 }
@@ -93,6 +102,196 @@ const getMyAccounts = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to fetch member accounts",
+            error: error.message
+        });
+    }
+};
+
+// Get logged-in member's loan accounts with full details and calculations
+const getMyLoans = async (req, res) => {
+    try {
+        const memberId = req.user.memberId || req.user.userId;
+
+        if (!memberId) {
+            return res.status(400).json({
+                success: false,
+                message: "Member ID not found in token"
+            });
+        }
+
+        // Find all loan accounts for this member in accounts_tbl
+        const allMemberAccounts = await AccountsModel.aggregate([
+            {
+                $match: {
+                    $or: [
+                        { member_id: memberId },
+                        { member_id: String(memberId) },
+                        { member_id: parseInt(memberId) || 0 }
+                    ]
+                }
+            },
+            {
+                $lookup: {
+                    from: "account_group_tbl",
+                    localField: "account_type",
+                    foreignField: "account_group_id",
+                    as: "groupInfo"
+                }
+            },
+            {
+                $unwind: {
+                    path: "$groupInfo",
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $lookup: {
+                    from: "interest_tbl",
+                    localField: "ref_id",
+                    foreignField: "interest_id",
+                    as: "interestInfo"
+                }
+            },
+            {
+                $unwind: {
+                    path: "$interestInfo",
+                    preserveNullAndEmptyArrays: true
+                }
+            }
+        ]);
+
+        // Filter for loans
+        const loanAccounts = allMemberAccounts.filter(acc => {
+            const accId = (acc.account_id || '').toUpperCase();
+            const accNo = (acc.account_no || '').toUpperCase();
+            const groupName = (acc.groupInfo?.account_group_name || '').toUpperCase();
+            const bookId = (acc.groupInfo?.account_book_id || '').toUpperCase();
+
+            const isLoanPrefix = /^(PL|ML|GL|BL|VL|EL|AL|PGL|PGLD|OD|LN)/i.test(accNo);
+            const isLoanId = accId.startsWith('LOAN');
+            const isLoanGroup = groupName.includes('LOAN') || groupName.includes('OVERDRAFT') || bookId === 'ABK026';
+
+            return isLoanPrefix || isLoanId || isLoanGroup;
+        });
+
+        // Query transactions to compute outstanding balance & repayments if any
+        let transactionsByAcc = {};
+        try {
+            const TransactionModel = require("../../models/transaction.model");
+            const accountNumbers = loanAccounts.map(l => l.account_no).filter(Boolean);
+
+            if (accountNumbers.length > 0) {
+                const txs = await TransactionModel.find({
+                    account_number: { $in: accountNumbers },
+                    status: { $regex: /completed|approved|success/i }
+                }).sort({ transaction_date: -1, createdAt: -1 });
+
+                txs.forEach(tx => {
+                    if (!transactionsByAcc[tx.account_number]) {
+                        transactionsByAcc[tx.account_number] = [];
+                    }
+                    transactionsByAcc[tx.account_number].push(tx);
+                });
+            }
+        } catch (txErr) {
+            console.warn("Could not query transactions for loans:", txErr.message);
+        }
+
+        // Format each loan
+        const formattedLoans = loanAccounts.map(loan => {
+            const principal = Number(loan.account_amount || 0);
+            const rate = Number(loan.interest_rate || loan.interestInfo?.interest_rate || loan.interestInfo?.interest_rate_general || 12);
+            const tenure = Number(loan.duration || loan.interestInfo?.duration || 12);
+            
+            // Standard Reducing EMI calculation: E = P * r * (1+r)^n / ((1+r)^n - 1)
+            let emi = 0;
+            if (principal > 0 && tenure > 0) {
+                const monthlyRate = (rate / 100) / 12;
+                if (monthlyRate > 0) {
+                    emi = Math.round((principal * monthlyRate * Math.pow(1 + monthlyRate, tenure)) / (Math.pow(1 + monthlyRate, tenure) - 1));
+                } else {
+                    emi = Math.round(principal / tenure);
+                }
+            }
+
+            // Calculate repayments made towards this loan
+            const accTxs = transactionsByAcc[loan.account_no] || [];
+            const totalRepaid = accTxs.reduce((sum, tx) => {
+                const isRepayment = (tx.transaction_type && /repayment|deposit|credit/i.test(tx.transaction_type)) ||
+                                    (tx.description && /repayment|emi/i.test(tx.description));
+                if (isRepayment) {
+                    return sum + Number(tx.credit || tx.amount || 0);
+                }
+                return sum;
+            }, 0);
+
+            // Outstanding balance = Principal - Repayments (minimum 0)
+            const outstanding = Math.max(0, principal - totalRepaid);
+
+            // Determine friendly category
+            const grpName = loan.groupInfo?.account_group_name || 'Personal Loan';
+            let category = 'Personal';
+            const upperGrp = grpName.toUpperCase();
+            if (upperGrp.includes('GOLD') && !upperGrp.includes('PIGM')) category = 'Gold';
+            else if (upperGrp.includes('MORTGAGE')) category = 'Mortgage';
+            else if (upperGrp.includes('BUSINESS')) category = 'Business';
+            else if (upperGrp.includes('VEHICLE')) category = 'Vehicle';
+            else if (upperGrp.includes('EDUCATION')) category = 'Education';
+            else if (upperGrp.includes('AGRICULTURE') || upperGrp.includes('AGRI')) category = 'Agriculture';
+            else if (upperGrp.includes('PIGMI GOLD') || upperGrp.includes('PIGMY GOLD')) category = 'Pigmi Gold';
+            else if (upperGrp.includes('PIGMI') || upperGrp.includes('PIGMY')) category = 'Pigmi';
+            else if (upperGrp.includes('OVERDRAFT') || upperGrp.includes('OD')) category = 'Overdraft';
+            else if (upperGrp.includes('PERSONAL')) category = 'Personal';
+            else category = grpName;
+
+            return {
+                id: loan._id,
+                account_id: loan.account_id,
+                account_no: loan.account_no,
+                account_type: loan.account_type,
+                loan_type: grpName,
+                category: category,
+                sanctioned_amount: principal,
+                outstanding_balance: outstanding,
+                total_repaid: totalRepaid,
+                interest_rate: rate,
+                tenure_months: tenure,
+                emi_amount: emi,
+                repayment_frequency: "Monthly",
+                date_of_opening: loan.date_of_opening,
+                date_of_maturity: loan.date_of_maturity,
+                status: loan.status || 'active',
+                branch_id: loan.branch_id || '001-HO MAIN BRANCH',
+                account_operation: loan.account_operation || 'Single',
+                introducer: loan.introducer || '',
+                assigned_to: loan.assigned_to || '',
+                joint_member: loan.joint_member || '',
+                recent_transactions: accTxs.slice(0, 5)
+            };
+        });
+
+        // Calculate summary
+        const summary = {
+            totalSanctionedAmount: formattedLoans.reduce((s, l) => s + l.sanctioned_amount, 0),
+            totalOutstandingBalance: formattedLoans.reduce((s, l) => s + l.outstanding_balance, 0),
+            totalMonthlyEmi: formattedLoans.filter(l => l.status?.toLowerCase() === 'active').reduce((s, l) => s + l.emi_amount, 0),
+            activeLoansCount: formattedLoans.filter(l => l.status?.toLowerCase() === 'active').length,
+            totalLoansCount: formattedLoans.length,
+        };
+
+        res.status(200).json({
+            success: true,
+            message: "Member loans fetched successfully",
+            data: {
+                loans: formattedLoans,
+                summary: summary
+            }
+        });
+    } catch (error) {
+        console.error("Error fetching member loans:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch member loans",
             error: error.message
         });
     }
@@ -676,6 +875,7 @@ const createMemberAccount = async (req, res) => {
 
 module.exports = {
     getMyAccounts,
+    getMyLoans,
     updateMyProfile,
     getMemberBasicInfo,
     getMemberAccountsPublic,

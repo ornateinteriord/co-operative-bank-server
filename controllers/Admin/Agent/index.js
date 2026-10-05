@@ -20,7 +20,9 @@ const createAgent = async (req, res) => {
             introducer,
             entered_by,
             designation,
-            status
+            status,
+            password,
+            role
         } = req.body;
 
         // Auto-increment agent_id with A2 prefix: Find max agent_id and add 1
@@ -51,6 +53,9 @@ const createAgent = async (req, res) => {
             }
         }
 
+        const agentPassword = password || mobile;
+        const agentRole = role || "AGENT";
+
         // Create new agent with auto-generated agent_id
         const newAgent = await AgentModel.create({
             agent_id: newAgentId,
@@ -67,7 +72,9 @@ const createAgent = async (req, res) => {
             introducer,
             entered_by,
             designation,
-            status: status || "active"
+            status: status || "active",
+            password: agentPassword,
+            role: agentRole
         });
 
         // Create user entry automatically
@@ -90,7 +97,7 @@ const createAgent = async (req, res) => {
                 user_id: newAgentId,
                 user_name: newAgentId,
                 reference_id: newAgentId,
-                password: mobile,
+                password: agentPassword,
                 user_role: "AGENT",
                 branch_code: branch_id,
                 user_status: "active"
@@ -106,7 +113,7 @@ const createAgent = async (req, res) => {
         // 📧 Send welcome email if email provided
         if (emailid) {
             try {
-                const emailTemplate = generateWelcomeEmail(name, newAgentId, mobile, 'Agent');
+                const emailTemplate = generateWelcomeEmail(name, newAgentId, agentPassword, 'Agent');
                 await sendMail(emailid, emailTemplate.subject, emailTemplate.html, emailTemplate.text);
                 console.log(`✅ Welcome email sent to ${emailid}`);
             } catch (emailError) {
@@ -216,6 +223,21 @@ const updateAgent = async (req, res) => {
             { $set: updateData },
             { new: true, runValidators: true }
         );
+
+        // Sync with UserModel if password or status was updated
+        if (updateData.password || updateData.status) {
+            const userUpdate = {};
+            if (updateData.password) userUpdate.password = updateData.password;
+            if (updateData.status) userUpdate.user_status = updateData.status;
+            try {
+                await UserModel.findOneAndUpdate(
+                    { user_id: agentId },
+                    { $set: userUpdate }
+                );
+            } catch (syncErr) {
+                console.error("Error syncing with user_tbl:", syncErr.message);
+            }
+        }
 
         res.status(200).json({
             success: true,
