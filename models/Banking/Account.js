@@ -86,6 +86,18 @@ const accountsSchema = mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    last_printed_line: {
+      type: Number,
+      default: 0,
+    },
+    last_printed_date: {
+      type: Date,
+      default: null,
+    },
+    passbook_notes: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true, collection: "accounts_tbl" }
 );
