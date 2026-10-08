@@ -27,8 +27,6 @@ router.get("/transactions",Authenticated,authorizeRoles("ADMIN"),getTransactionD
 router.put("/ticket/:id" ,Authenticated,authorizeRoles("ADMIN"), editTicket)
 router.get("/tickets" ,Authenticated,authorizeRoles("ADMIN"), getTickets)
 router.get("/epin-summary" ,Authenticated,authorizeRoles("ADMIN"), getEpinsSummary)
-router.put('/update-member/:memberId',Authenticated,authorizeRoles("ADMIN"),UpdateMemberDetails)
-router.get('/get-member/:memberId',Authenticated,authorizeRoles("ADMIN"),getMember)
 router.get('/getnews',Authenticated,authorizeRoles("ADMIN"),getNews)
 router.post('/addnews',Authenticated,authorizeRoles("ADMIN"),addNews)
 router.get('/getholiday',Authenticated,authorizeRoles("ADMIN"),getHoliday)
@@ -57,8 +55,8 @@ router.post('/trigger-roi', Authenticated, authorizeRoles("ADMIN"), triggerDaily
 // Member routes
 router.post('/create-member', Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), createMember)
 router.get('/get-members', Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), getNidhiMembers)
-router.put('/update-member/:memberId', Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), updateNidhiMember)
-router.get('/get-member/:memberId', Authenticated, authorizeRoles("ADMIN", "ADMIN_01", 'AGENT'), getNidhiMemberById)
+router.put('/update-member/:memberId', Authenticated, authorizeRoles("ADMIN", "ADMIN_01", "AGENT"), updateNidhiMember)
+router.get('/get-member/:memberId', Authenticated, authorizeRoles("ADMIN", "ADMIN_01", "AGENT"), getNidhiMemberById)
 router.put('/member/:memberId/set-hierarchy', Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), setIntroducerHierarchy)
 
 // Agent routes
@@ -76,6 +74,7 @@ router.get('/get-interest/:interestId', Authenticated, authorizeRoles("ADMIN", "
 // Account routes
 router.get('/get-interests-by-account-group/:account_group_id', Authenticated, authorizeRoles("ADMIN", "ADMIN_01", "AGENT"), getInterestsByAccountGroup)
 router.post('/create-account', Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), createAccount)
+router.post('/set-primary-account', Authenticated, authorizeRoles("ADMIN", "ADMIN_01", "AGENT"), require("../controllers/Member").setPrimaryAccount)
 router.get('/get-accounts', Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), getAccounts)
 router.get('/get-account/:accountId', Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), getNidhiAccountById)
 router.put('/update-account/:accountId', Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), updateAccount)

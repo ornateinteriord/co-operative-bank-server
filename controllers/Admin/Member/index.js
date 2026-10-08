@@ -303,16 +303,23 @@ const updateMember = async (req, res) => {
 const getMemberById = async (req, res) => {
     try {
         const { memberId } = req.params;
+        const trimmedId = memberId ? memberId.trim() : "";
 
         // Convert to number if it's a valid number string
-        const memberIdAsNumber = parseInt(memberId, 10);
-        const isValidNumber = !isNaN(memberIdAsNumber) && memberIdAsNumber.toString() === memberId;
+        const memberIdAsNumber = parseInt(trimmedId, 10);
+        const isValidNumber = !isNaN(memberIdAsNumber) && memberIdAsNumber.toString() === trimmedId;
 
         // Build query conditions
         const queryConditions = [
-            { member_id: memberId },
-            { Member_id: memberId },
+            { member_id: trimmedId },
+            { Member_id: trimmedId },
+            { member_id: trimmedId.toUpperCase() },
+            { Member_id: trimmedId.toUpperCase() },
         ];
+
+        if (mongoose.Types.ObjectId.isValid(trimmedId)) {
+            queryConditions.push({ _id: trimmedId });
+        }
 
         if (isValidNumber) {
             queryConditions.push({ member_id: memberIdAsNumber });
@@ -331,10 +338,59 @@ const getMemberById = async (req, res) => {
             });
         }
 
+        const raw = member.toObject ? member.toObject() : member;
+        const normalizedMember = {
+            ...raw,
+            member_id: raw.member_id || raw.Member_id || trimmedId,
+            Member_id: raw.Member_id || raw.member_id || trimmedId,
+            name: raw.name || raw.Name || "",
+            Name: raw.Name || raw.name || "",
+            father_name: raw.father_name || raw.Father_name || "",
+            Father_name: raw.Father_name || raw.father_name || "",
+            contactno: (raw.contactno || raw.mobileno || "").toString().trim(),
+            mobileno: (raw.mobileno || raw.contactno || "").toString().trim(),
+            dob: raw.dob || raw.DOB || "",
+            gender: raw.gender || raw.Gender || "",
+            address: raw.address || raw.Address || "",
+            pan_no: raw.pan_no || raw.Panno || raw.pan || "",
+            aadharcard_no: raw.aadharcard_no || raw.Aadharcard || raw.aadharno || "",
+            occupation: raw.occupation || raw.Occupation || "",
+            nominee: raw.nominee || raw.Nominee_name || "",
+            relation: raw.relation || raw.Nominee_Relation || "",
+            introducer: raw.introducer || raw.Sponsor_code || "",
+            introducer_name: raw.introducer_name || raw.Sponsor_name || "",
+        };
+
+        try {
+            const AccountsModel = require("../../../models/accounts.model");
+            const { resolvePrimaryAccountForMember } = require("../../../utils/primaryAccountHelper");
+            const memberIdToSearch = normalizedMember.member_id;
+
+            const allMemberAccounts = await AccountsModel.find({
+                $or: [
+                    { member_id: memberIdToSearch },
+                    { member_id: String(memberIdToSearch) },
+                    { member_id: parseInt(memberIdToSearch) || 0 }
+                ],
+                status: { $nin: ["closed", "inactive"] }
+            });
+
+            const primaryResolution = await resolvePrimaryAccountForMember(memberIdToSearch);
+            normalizedMember.accounts = allMemberAccounts || [];
+            normalizedMember.primary_account = primaryResolution.account || null;
+            normalizedMember.has_operating_account = !!primaryResolution.account;
+        } catch (accErr) {
+            console.error("Non-critical error loading accounts in getMemberById:", accErr.message);
+            normalizedMember.accounts = [];
+            normalizedMember.primary_account = null;
+            normalizedMember.has_operating_account = false;
+        }
+
         res.status(200).json({
             success: true,
             message: "Member fetched successfully",
-            data: member
+            data: normalizedMember,
+            member: normalizedMember
         });
     } catch (error) {
         console.error('[ERROR] Failed to fetch member:', error);

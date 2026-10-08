@@ -363,6 +363,16 @@ const climeRewardLoan = async (req, res) => {
     console.log("loanDetails", loanDetails);
     console.log("loanDetails", loanAmount);
 
+    // Mandatory Banking Check: Member MUST have an active operating bank account before claiming a loan
+    const { resolvePrimaryAccountForMember } = require("../../../utils/primaryAccountHelper");
+    const operatingCheck = await resolvePrimaryAccountForMember(member.Member_id || member.member_id);
+    if (!operatingCheck || !operatingCheck.account) {
+      return res.status(400).json({
+        success: false,
+        message: "Operating Bank Account Required: You must have an active operating bank account (SB/CA) before claiming a loan. In banking, loans must be disbursed into an active operating bank account.",
+      });
+    }
+
     member.upgrade_status = "Processing";
     await member.save();
 
@@ -497,6 +507,19 @@ const processRewardLoan = async (req, res) => {
       updateData.repayment_status = "Unpaid";
       updateData.admin_notes = `Loan approved. Tier Level: ${loanDetails?.level || 'Custom'}. Deduction: ${deduction}. Credited: ${finalCreditAmount}. Due: ${finalLoanAmount}.`;
 
+      // Disburse the approved credit amount to member's primary operating account
+      try {
+        const { resolvePrimaryAccountForMember } = require("../../../utils/primaryAccountHelper");
+        const primaryInfo = await resolvePrimaryAccountForMember(member.Member_id || member.member_id);
+        if (primaryInfo && primaryInfo.account) {
+          primaryInfo.account.account_amount = (primaryInfo.account.account_amount || 0) + Number(finalCreditAmount || 0);
+          await primaryInfo.account.save();
+          updateData.disbursed_to = primaryInfo.account.account_no;
+        }
+      } catch (disburseErr) {
+        console.error("Non-critical error crediting primary account on reward loan:", disburseErr.message);
+      }
+
       member.upgrade_status = "Approved";
     } else {
       updateData.status = "Rejected";
@@ -603,7 +626,7 @@ const repaymentLoan = async (req, res) => {
     });
 
     // Adjust current due amount by subtracting pending repayments
-    currentDueAmount = baseDueAmount - pendingRepaymentAmount;
+    let currentDueAmount = baseDueAmount - pendingRepaymentAmount;
 
     console.log("💳 Current due amount calculation:", {
       base_due_amount: baseDueAmount,

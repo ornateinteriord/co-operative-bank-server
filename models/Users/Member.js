@@ -103,7 +103,8 @@ const MemberSchema = new mongoose.Schema(
     member_image: { type: String, default: null },
     member_signature: { type: String, default: null },
     entered_by: { type: String, default: null },
-    role: { type: String, default: "USER" }
+    role: { type: String, default: "USER" },
+    primary_account_no: { type: String, default: null }
   },
   { timestamps: true, collection: "member_tbl" }
 );

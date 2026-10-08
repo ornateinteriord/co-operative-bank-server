@@ -11,11 +11,11 @@ const { createMaturityPayment } = require("../controllers/Admin/Banking/cashTran
 const router = require("express").Router();
 
 // Member routes
-router.post('/create-member', Authenticated, authorizeRoles(["ADMIN"]), createMember)
-router.get('/get-members', Authenticated, authorizeRoles(["ADMIN"]), getMembers)
-router.put('/update-member/:memberId', Authenticated, authorizeRoles(["ADMIN"]), updateMember)
-router.get('/get-member/:memberId', Authenticated, authorizeRoles(["ADMIN", 'AGENT']), getMemberById)
-router.put('/member/:memberId/set-hierarchy', Authenticated, authorizeRoles(["ADMIN"]), setIntroducerHierarchy)
+router.post('/create-member', Authenticated, authorizeRoles(["ADMIN", "ADMIN_01"]), createMember)
+router.get('/get-members', Authenticated, authorizeRoles(["ADMIN", "ADMIN_01"]), getMembers)
+router.put('/update-member/:memberId', Authenticated, authorizeRoles(["ADMIN", "ADMIN_01", "AGENT"]), updateMember)
+router.get('/get-member/:memberId', Authenticated, authorizeRoles(["ADMIN", "ADMIN_01", "AGENT"]), getMemberById)
+router.put('/member/:memberId/set-hierarchy', Authenticated, authorizeRoles(["ADMIN", "ADMIN_01"]), setIntroducerHierarchy)
 
 // 🔧 FIX HIERARCHY - Run to rebuild all member and agent hierarchies
 // Add ?force=true to force rebuild even existing hierarchies
@@ -67,6 +67,7 @@ router.get('/get-interest/:interestId', Authenticated, authorizeRoles(["ADMIN"])
 // Account routes
 router.get('/get-interests-by-account-group/:account_group_id', Authenticated, authorizeRoles(["ADMIN", "AGENT"]), getInterestsByAccountGroup)
 router.post('/create-account', Authenticated, authorizeRoles(["ADMIN"]), createAccount)
+router.post('/set-primary-account', Authenticated, authorizeRoles(["ADMIN", "ADMIN_01", "AGENT"]), require("../controllers/Member").setPrimaryAccount)
 router.get('/get-accounts', Authenticated, authorizeRoles(["ADMIN"]), getAccounts)
 router.get('/get-account/:accountId', Authenticated, authorizeRoles(["ADMIN"]), getAccountById)
 router.put('/update-account/:accountId', Authenticated, authorizeRoles(["ADMIN"]), updateAccount)

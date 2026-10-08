@@ -884,6 +884,18 @@ exports.transferMoney = async (req, res) => {
             });
         }
 
+        const { isLoanAccount } = require("../../utils/primaryAccountHelper");
+        const AccountGroupModel = require("../../models/accountGroup.model");
+
+        // Banking Logic: Funds CANNOT be transferred out of a loan account
+        const senderGroup = await AccountGroupModel.findOne({ account_group_id: senderAccount.account_type });
+        if (isLoanAccount(senderAccount, senderGroup)) {
+            return res.status(400).json({
+                success: false,
+                message: "Funds cannot be transferred out of a loan account. Fund transfers are only permitted from operating accounts (Savings/Current)."
+            });
+        }
+
         // Find receiver account (handle type mismatches)
         const receiverAccount = allAccounts.find(acc =>
             (acc.account_id === to.account_id || acc.account_id === parseInt(to.account_id)) &&
@@ -907,6 +919,10 @@ exports.transferMoney = async (req, res) => {
                 message: "Receiver account is not active"
             });
         }
+
+        // Check if receiver account is a loan account
+        const receiverGroup = await AccountGroupModel.findOne({ account_group_id: receiverAccount.account_type });
+        const isReceiverLoan = isLoanAccount(receiverAccount, receiverGroup);
 
         // Check if sender has sufficient balance
         if (senderAccount.account_amount < amount) {
@@ -939,9 +955,24 @@ exports.transferMoney = async (req, res) => {
         senderAccount.account_amount -= amount;
         await senderAccount.save();
 
-        // Add to receiver
-        receiverAccount.account_amount += amount;
-        await receiverAccount.save();
+        // Update receiver account balance
+        let receiverNewBalance = 0;
+        if (isReceiverLoan) {
+            // Banking Logic: Transfer into a loan account is a loan repayment (EMI). It reduces outstanding loan debt!
+            const currentDebt = receiverAccount.account_amount || 0;
+            receiverNewBalance = Math.max(0, currentDebt - amount);
+            receiverAccount.account_amount = receiverNewBalance;
+            if (receiverNewBalance === 0) {
+                receiverAccount.status = "closed";
+                receiverAccount.date_of_close = new Date();
+            }
+            await receiverAccount.save();
+        } else {
+            // Standard deposit credit
+            receiverNewBalance = (receiverAccount.account_amount || 0) + amount;
+            receiverAccount.account_amount = receiverNewBalance;
+            await receiverAccount.save();
+        }
 
         // Create debit transaction for sender
         const debitTxId = generateTransactionId();
@@ -952,7 +983,9 @@ exports.transferMoney = async (req, res) => {
             account_number: from.account_no,
             account_type: from.account_type,
             transaction_type: "Transfer",
-            description: `Transfer to ${receiverMember.name} (${to.account_no})`,
+            description: isReceiverLoan
+                ? `Loan repayment transfer to ${receiverMember.name} (Loan A/C: ${to.account_no})`
+                : `Transfer to ${receiverMember.name} (${to.account_no})`,
             debit: amount,
             credit: 0,
             balance: senderAccount.account_amount,
@@ -962,17 +995,20 @@ exports.transferMoney = async (req, res) => {
         });
 
         // Create credit transaction for receiver
+        const creditTxId = generateTransactionId();
         await TransactionModel.create({
-            transaction_id: generateTransactionId(),
+            transaction_id: creditTxId,
             transaction_date: new Date(),
             member_id: to.member_id,
             account_number: to.account_no,
             account_type: to.account_type,
-            transaction_type: "Transfer",
-            description: `Transfer from ${senderMember.name} (${from.account_no})`,
+            transaction_type: isReceiverLoan ? "Loan Repayment" : "Transfer",
+            description: isReceiverLoan
+                ? `Loan repayment received via transfer from ${senderMember.name} (${from.account_no})`
+                : `Transfer from ${senderMember.name} (${from.account_no})`,
             credit: amount,
             debit: 0,
-            balance: receiverAccount.account_amount,
+            balance: receiverNewBalance,
             Name: receiverMember.name,
             mobileno: receiverMember.contactno,
             status: "Completed",
@@ -1106,6 +1142,17 @@ exports.requestWithdraw = async (req, res) => {
             return res.status(403).json({
                 success: false,
                 message: "Account is not active. Cannot process withdrawal request."
+            });
+        }
+
+        // Banking Logic: Check that withdrawal is NOT from a loan account
+        const { isLoanAccount: checkIsLoanAcc } = require("../../utils/primaryAccountHelper");
+        const AccountGroupModelForWithdraw = require("../../models/accountGroup.model");
+        const accountGroup = await AccountGroupModelForWithdraw.findOne({ account_group_id: account.account_type });
+        if (checkIsLoanAcc(account, accountGroup)) {
+            return res.status(400).json({
+                success: false,
+                message: "Withdrawals cannot be processed from a loan account. Withdrawals are only permitted from operating accounts (Savings/Current)."
             });
         }
 

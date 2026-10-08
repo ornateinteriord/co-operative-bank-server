@@ -52,6 +52,7 @@ const getMyAccounts = async (req, res) => {
                             account_amount: "$account_amount",
                             status: "$status",
                             date_of_opening: "$date_of_opening",
+                            createdAt: "$createdAt",
                             interest_rate: "$interest_rate",
                             duration: "$duration",
                             date_of_maturity: "$date_of_maturity",
@@ -60,7 +61,10 @@ const getMyAccounts = async (req, res) => {
                             introducer: "$introducer",
                             assigned_to: "$assigned_to",
                             joint_member: "$joint_member",
-                            ref_id: "$ref_id"
+                            ref_id: "$ref_id",
+                            is_primary: "$is_primary",
+                            loan_disbursed_to: "$loan_disbursed_to",
+                            disbursed_at: "$disbursed_at"
                         }
                     }
                 }
@@ -79,6 +83,20 @@ const getMyAccounts = async (req, res) => {
             }
         ]);
 
+        // Resolve primary operating account (saved explicit or earliest created)
+        const { resolvePrimaryAccountForMember } = require("../../utils/primaryAccountHelper");
+        const resolvedPrimary = await resolvePrimaryAccountForMember(memberId);
+        const resolvedPrimaryAccNo = resolvedPrimary?.account ? resolvedPrimary.account.account_no : null;
+
+        // Ensure is_primary flag on each account reflects the active primary account
+        accounts.forEach(group => {
+            if (Array.isArray(group.accounts)) {
+                group.accounts.forEach(acc => {
+                    acc.is_primary = Boolean(resolvedPrimaryAccNo && acc.account_no === resolvedPrimaryAccNo);
+                });
+            }
+        });
+
         // Calculate total balance across all accounts
         const totalBalance = accounts.reduce((sum, accountType) => {
             // Sum all account_amount values in this account type
@@ -94,7 +112,16 @@ const getMyAccounts = async (req, res) => {
             data: {
                 accountTypes: accounts,
                 totalAccounts: accounts.reduce((sum, acc) => sum + acc.count, 0),
-                totalBalance: totalBalance
+                totalBalance: totalBalance,
+                primary_account: resolvedPrimary?.account ? {
+                    account_no: resolvedPrimary.account.account_no,
+                    account_id: resolvedPrimary.account.account_id,
+                    account_type: resolvedPrimary.account.account_type,
+                    account_amount: resolvedPrimary.account.account_amount,
+                    date_of_opening: resolvedPrimary.account.date_of_opening,
+                    status: resolvedPrimary.account.status,
+                    is_default: resolvedPrimary.isDefault
+                } : null
             }
         });
     } catch (error) {
@@ -261,6 +288,8 @@ const getMyLoans = async (req, res) => {
                 date_of_opening: loan.date_of_opening,
                 date_of_maturity: loan.date_of_maturity,
                 status: loan.status || 'active',
+                loan_disbursed_to: loan.loan_disbursed_to || null,
+                disbursed_at: loan.disbursed_at || null,
                 branch_id: loan.branch_id || '001-HO MAIN BRANCH',
                 account_operation: loan.account_operation || 'Single',
                 introducer: loan.introducer || '',
@@ -475,7 +504,11 @@ const getMemberAccountsPublic = async (req, res) => {
                     account_group_name: "$groupInfo.account_group_name",
                     date_of_opening: 1,
                     account_amount: 1,
-                    status: 1
+                    status: 1,
+                    is_primary: 1,
+                    loan_disbursed_to: 1,
+                    disbursed_at: 1,
+                    createdAt: 1
                 }
             },
             {
@@ -483,10 +516,20 @@ const getMemberAccountsPublic = async (req, res) => {
             }
         ]);
 
+        // Resolve member's primary account
+        const { resolvePrimaryAccountForMember } = require("../../utils/primaryAccountHelper");
+        const resolvedPrimary = await resolvePrimaryAccountForMember(memberId);
+        const primaryAccNo = resolvedPrimary?.account ? resolvedPrimary.account.account_no : null;
+
+        accounts.forEach(acc => {
+            acc.is_primary = Boolean(primaryAccNo && acc.account_no === primaryAccNo);
+        });
+
         res.status(200).json({
             success: true,
             message: "Member accounts fetched successfully",
-            data: accounts
+            data: accounts,
+            primary_account_no: primaryAccNo
         });
     } catch (error) {
         console.error("Error fetching member accounts:", error);
@@ -741,30 +784,64 @@ const createMemberAccount = async (req, res) => {
             });
         }
 
-        // --- ACCOUNT ID & NUMBER GENERATION (Same as Admin) ---
+        const groupName = accountGroup.account_group_name?.toUpperCase() || "";
+        const isLoan = accountGroup.account_book_id === "ABK026" || groupName.includes("LOAN") || groupName.includes("OVERDRAFT");
 
-        // Auto-increment account_id with ACC prefix
-        const lastAccount = await AccountsModel.findOne()
-            .sort({ account_id: -1 })
-            .limit(1);
-
-        let newAccountId = "ACC000001";
-        if (lastAccount && lastAccount.account_id) {
-            const numericPart = lastAccount.account_id.replace(/^ACC/, '');
-            const lastId = parseInt(numericPart);
-            if (!isNaN(lastId)) {
-                const nextId = lastId + 1;
-                newAccountId = `ACC${nextId.toString().padStart(6, '0')}`;
+        // Mandatory Banking Logic: Member MUST have an active operating bank account (SB/CA) before loan opening
+        if (isLoan) {
+            const { resolvePrimaryAccountForMember } = require("../../utils/primaryAccountHelper");
+            const operatingCheck = await resolvePrimaryAccountForMember(memberId);
+            if (!operatingCheck || !operatingCheck.account) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Cannot open loan account: You do not have an active operating bank account (SB/CA). In accordance with banking regulations, an operating account must be opened before a loan can be sanctioned or assigned."
+                });
             }
         }
 
-        // Professional Account Number Generation
-        // Format: [PREFIX][SEQUENCE]
-        // Example: SB000001, RD000001, PIG000001
-        
-        const groupName = accountGroup.account_group_name?.toUpperCase() || "";
-        let typePrefix = "ACC";
-        if (groupName.includes("SAVING") || groupName === "SB") typePrefix = "SB";
+        // --- ACCOUNT ID & NUMBER GENERATION (Same as Admin) ---
+
+        // Auto-increment account_id: LOAN prefix for loan accounts, ACC prefix for regular accounts
+        let newAccountId;
+        if (isLoan) {
+            const lastLoanAccount = await AccountsModel.findOne({
+                account_id: { $regex: /^LOAN/i }
+            }).sort({ account_id: -1 }).limit(1);
+
+            if (lastLoanAccount && lastLoanAccount.account_id) {
+                const numericPart = lastLoanAccount.account_id.replace(/^LOAN/i, '');
+                const lastId = parseInt(numericPart);
+                newAccountId = !isNaN(lastId) ? `LOAN${(lastId + 1).toString().padStart(6, '0')}` : "LOAN000001";
+            } else {
+                newAccountId = "LOAN000001";
+            }
+        } else {
+            const lastAccount = await AccountsModel.findOne({
+                account_id: { $regex: /^ACC/i }
+            }).sort({ account_id: -1 }).limit(1);
+
+            if (lastAccount && lastAccount.account_id) {
+                const numericPart = lastAccount.account_id.replace(/^ACC/i, '');
+                const lastId = parseInt(numericPart);
+                newAccountId = !isNaN(lastId) ? `ACC${(lastId + 1).toString().padStart(6, '0')}` : "ACC000001";
+            } else {
+                newAccountId = "ACC000001";
+            }
+        }
+
+        // Account Number Prefix Generation based on Account Group
+        let typePrefix = isLoan ? "LN" : "ACC";
+        if (groupName.includes("PERSONAL") && groupName.includes("LOAN")) typePrefix = "PL";
+        else if (groupName.includes("MORTGAGE")) typePrefix = "ML";
+        else if (groupName.includes("PIGMY GOLD LOAN") || (groupName.includes("PIGMI") && groupName.includes("GOLD"))) typePrefix = "PGLD";
+        else if (groupName.includes("GOLD") && groupName.includes("LOAN")) typePrefix = "GL";
+        else if (groupName.includes("BUSINESS") && groupName.includes("LOAN")) typePrefix = "BL";
+        else if (groupName.includes("VEHICLE")) typePrefix = "VL";
+        else if (groupName.includes("EDUCATION")) typePrefix = "EL";
+        else if (groupName.includes("AGRICULTURE") || groupName.includes("AGRI")) typePrefix = "AL";
+        else if (groupName.includes("PIGMY LOAN") || groupName.includes("PIGMI LOAN")) typePrefix = "PGL";
+        else if (groupName.includes("OVERDRAFT") || groupName === "OD") typePrefix = "OD";
+        else if (groupName.includes("SAVING") || groupName === "SB") typePrefix = "SB";
         else if (groupName.includes("CURRENT") || groupName === "CA" || groupName === "CUR") typePrefix = "CA";
         else if (groupName.includes("RECURRING") || groupName === "RD") typePrefix = "RD";
         else if (groupName.includes("FIXED") || groupName === "FD") typePrefix = "FD";
@@ -774,19 +851,14 @@ const createMemberAccount = async (req, res) => {
         
         // Find the last account with this prefix to determine next sequence
         const lastAccountWithPrefix = await AccountsModel.findOne({
-            account_no: { $regex: new RegExp(`^${typePrefix}`) }
+            account_no: { $regex: new RegExp(`^${typePrefix}`, 'i') }
         }).sort({ account_no: -1 }).limit(1);
 
         let newAccountNo;
         if (lastAccountWithPrefix && lastAccountWithPrefix.account_no) {
-            // Extract the sequence part (everything after prefix)
             const sequencePart = lastAccountWithPrefix.account_no.substring(typePrefix.length);
             const lastSeq = parseInt(sequencePart);
-            if (!isNaN(lastSeq)) {
-                newAccountNo = `${typePrefix}${(lastSeq + 1).toString().padStart(6, '0')}`;
-            } else {
-                newAccountNo = `${typePrefix}000001`;
-            }
+            newAccountNo = !isNaN(lastSeq) ? `${typePrefix}${(lastSeq + 1).toString().padStart(6, '0')}` : `${typePrefix}000001`;
         } else {
             newAccountNo = `${typePrefix}000001`;
         }
@@ -807,7 +879,7 @@ const createMemberAccount = async (req, res) => {
             duration: duration || 0,
             date_of_maturity: date_of_maturity,
             date_of_close: null,
-            status: "active", // Or pending approval? user didn't specify, assuming active for now
+            status: "active",
             // assigned_to: null,
             account_amount: account_amount || 0,
             // joint_member: null
@@ -815,7 +887,36 @@ const createMemberAccount = async (req, res) => {
 
         // Fetch member to get introducer for commission
         const member = await MemberModel.findOne({ member_id: memberId });
-        // Update account with member's introducer if needed, or leave it for commission calculation
+
+        // If loan account is created with amount > 0, disburse directly to primary operating account
+        const { isLoanAccount, resolvePrimaryAccountForMember, disburseLoanToAccount } = require("../../utils/primaryAccountHelper");
+        if (isLoanAccount(newAccount, accountGroup)) {
+            if (account_amount && account_amount > 0) {
+                try {
+                    console.log(`🏦 Sanctioning self-service loan ${newAccountNo}: Disbursing ₹${account_amount} to primary account...`);
+                    const disburseResult = await disburseLoanToAccount({
+                        loanAccount: newAccount,
+                        amount: account_amount,
+                        enteredBy: memberId,
+                        targetAccountNo: req.body.disburse_to || null
+                    });
+                    console.log("💰 Self-service loan disbursement result:", disburseResult);
+                } catch (disburseErr) {
+                    console.error("❌ Error disbursing self-service loan:", disburseErr.message);
+                }
+            }
+        } else {
+            // If this is the member's first operating account, set as primary by default
+            const existingPrimary = await resolvePrimaryAccountForMember(memberId);
+            if (!existingPrimary.account || existingPrimary.account.account_no === newAccount.account_no) {
+                newAccount.is_primary = true;
+                await newAccount.save();
+                await MemberModel.findOneAndUpdate(
+                    { $or: [{ member_id: memberId }, { Member_id: memberId }] },
+                    { $set: { primary_account_no: newAccountNo } }
+                );
+            }
+        }
 
         // If account is created with initial amount > 0, create transaction and trigger commission
         if (account_amount && account_amount > 0) {
@@ -873,6 +974,47 @@ const createMemberAccount = async (req, res) => {
     }
 };
 
+// Set member primary operating account
+const setPrimaryAccount = async (req, res) => {
+    try {
+        const { account_no, account_id, member_id: customMemberId } = req.body;
+        const authMemberId = req.user.memberId || req.user.userId;
+        const targetMemberId = (req.user.role === "ADMIN" || req.user.role === "ADMIN_01") && customMemberId
+            ? customMemberId
+            : authMemberId;
+
+        if (!targetMemberId) {
+            return res.status(400).json({
+                success: false,
+                message: "Member ID is required"
+            });
+        }
+
+        const identifier = account_no || account_id;
+        if (!identifier) {
+            return res.status(400).json({
+                success: false,
+                message: "Account number or Account ID is required"
+            });
+        }
+
+        const { setPrimaryAccountForMember } = require("../../utils/primaryAccountHelper");
+        const updatedAccount = await setPrimaryAccountForMember(targetMemberId, identifier);
+
+        return res.status(200).json({
+            success: true,
+            message: `Account ${updatedAccount.account_no || updatedAccount.account_id} designated as primary account successfully`,
+            data: updatedAccount
+        });
+    } catch (error) {
+        console.error("Error setting primary account:", error);
+        return res.status(400).json({
+            success: false,
+            message: error.message || "Failed to set primary account"
+        });
+    }
+};
+
 module.exports = {
     getMyAccounts,
     getMyLoans,
@@ -882,5 +1024,6 @@ module.exports = {
     getMemberTransactions,
     getMemberAccountGroups,
     getMemberInterestsByAccountGroup,
-    createMemberAccount
+    createMemberAccount,
+    setPrimaryAccount
 };

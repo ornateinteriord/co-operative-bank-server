@@ -98,6 +98,18 @@ const accountsSchema = mongoose.Schema(
       type: String,
       default: "",
     },
+    is_primary: {
+      type: Boolean,
+      default: false,
+    },
+    loan_disbursed_to: {
+      type: String,
+      default: null, // Account number where sanctioned loan amount was transferred
+    },
+    disbursed_at: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true, collection: "accounts_tbl" }
 );

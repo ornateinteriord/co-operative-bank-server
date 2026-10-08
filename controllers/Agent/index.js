@@ -3,6 +3,7 @@ const MemberModel = require("../../models/member.model");
 const TransactionModel = require("../../models/transaction.model");
 const CommissionModel = require("../../models/commission.model");
 const AgentModel = require("../../models/agent.model");
+const AccountGroupModel = require("../../models/accountGroup.model");
 const generateTransactionId = require("../../utils/generateTransactionId");
 const { processTransactionCommission } = require("../../utils/commissionUtils");
 
@@ -171,24 +172,42 @@ const getAssignedAccounts = async (req, res) => {
             assigned_to: agentId
         }).sort({ date_of_opening: -1 });
 
-        // Fetch member details for each account
+        // Fetch member details and account group name for each account
         const accountsWithMemberDetails = await Promise.all(
             accounts.map(async (account) => {
                 const member = await MemberModel.findOne({
-                    member_id: account.member_id
+                    $or: [
+                        { member_id: account.member_id },
+                        { Member_id: account.member_id }
+                    ]
                 });
+
+                // Find human-readable group name (e.g. AGP007 -> Gold Loan)
+                let accountGroupName = account.account_type;
+                if (account.account_type) {
+                    const group = await AccountGroupModel.findOne({
+                        account_group_id: account.account_type
+                    });
+                    if (group && group.account_group_name) {
+                        accountGroupName = group.account_group_name;
+                    }
+                }
+
+                const holderName = member ? (member.name || member.Name || "Member") : (account.account_holder || "N/A");
 
                 return {
                     date_of_opening: account.date_of_opening,
                     account_no: account.account_no,
-                    account_holder: member ? member.name : "N/A",
+                    account_holder: holderName,
                     date_of_maturity: account.date_of_maturity,
                     balance: account.account_amount,
                     status: account.status,
-                    // Include additional fields that might be useful
+                    // Include additional fields that are useful for frontend
                     account_id: account.account_id,
                     member_id: account.member_id,
-                    account_type: account.account_type,
+                    account_type: accountGroupName, // e.g., "Gold Loan", "SB"
+                    account_type_id: account.account_type, // Raw ID e.g. "AGP007"
+                    account_group_name: accountGroupName,
                     account_operation: account.account_operation
                 };
             })
@@ -269,9 +288,38 @@ const collectPayment = async (req, res) => {
         // Generate transaction ID
         const newTransactionId = await generateTransactionId();
 
-        // Update account balance
-        account.account_amount += parseFloat(amount);
-        await account.save();
+        // Check if this account is a loan account
+        const { isLoanAccount } = require("../../utils/primaryAccountHelper");
+        const accountGroup = await AccountGroupModel.findOne({ account_group_id: account.account_type });
+        const isLoan = isLoanAccount(account, accountGroup);
+
+        const collectionAmount = parseFloat(amount);
+        let newBalance = 0;
+        let txnType = "Collection";
+        let txnDesc = "Collected by agent";
+
+        if (isLoan) {
+            // Banking Logic: On loan accounts, collection is a loan repayment (EMI). It reduces the outstanding debt!
+            const currentDebt = account.account_amount || 0;
+            newBalance = Math.max(0, currentDebt - collectionAmount);
+            account.account_amount = newBalance;
+            if (newBalance === 0) {
+                account.status = "closed";
+                account.date_of_close = new Date();
+            }
+            await account.save();
+
+            txnType = "Loan Repayment";
+            txnDesc = `Loan EMI repayment collected by agent (${agentId})`;
+        } else {
+            // Banking Logic: On deposit accounts (SB, RD, FD, Pigmy), collection increases the account balance
+            newBalance = (account.account_amount || 0) + collectionAmount;
+            account.account_amount = newBalance;
+            await account.save();
+
+            txnType = "Collection";
+            txnDesc = "Collected by agent";
+        }
 
         // Create transaction record
         const transaction = await TransactionModel.create({
@@ -280,10 +328,10 @@ const collectPayment = async (req, res) => {
             member_id: account.member_id,
             account_number: account.account_no,
             account_type: account.account_type,
-            transaction_type: "Collection",
-            description: "Collected by agent",
-            credit: parseFloat(amount),
-            balance: account.account_amount,
+            transaction_type: txnType,
+            description: txnDesc,
+            credit: collectionAmount,
+            balance: newBalance,
             Name: member.name,
             mobileno: member.contactno,
             status: "Completed",
@@ -367,6 +415,16 @@ const makePayment = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: "Cannot make payment for inactive account"
+            });
+        }
+
+        // Banking Logic: Term loan accounts cannot have direct cash withdrawals/debits
+        const { isLoanAccount: checkIsLoan } = require("../../utils/primaryAccountHelper");
+        const accountGroup = await AccountGroupModel.findOne({ account_group_id: account.account_type });
+        if (checkIsLoan(account, accountGroup)) {
+            return res.status(400).json({
+                success: false,
+                message: "Direct cash withdrawals or debits cannot be performed on loan accounts. Loan funds are disbursed to the member's operating bank account."
             });
         }
 

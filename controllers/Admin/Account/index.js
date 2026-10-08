@@ -188,6 +188,18 @@ const createAccount = async (req, res) => {
         const groupName = accountGroup.account_group_name?.toUpperCase() || "";
         const isLoan = accountGroup.account_book_id === "ABK026" || groupName.includes("LOAN") || groupName.includes("OVERDRAFT");
 
+        // Mandatory Banking Logic: Member MUST have an active operating bank account (SB/CA) before loan assignment
+        if (isLoan) {
+            const { resolvePrimaryAccountForMember } = require("../../../utils/primaryAccountHelper");
+            const operatingCheck = await resolvePrimaryAccountForMember(member_id);
+            if (!operatingCheck || !operatingCheck.account) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Cannot create or assign loan account: Member does not have an active operating bank account (SB/CA). An operating account must be opened before a loan can be sanctioned or assigned."
+                });
+            }
+        }
+
         // Auto-increment account_id: LOAN prefix for loan accounts, ACC prefix for regular accounts
         let newAccountId;
         if (isLoan) {
@@ -284,46 +296,79 @@ const createAccount = async (req, res) => {
             joint_member
         });
 
-        // If account is created with initial amount > 0, create transaction and trigger commission
-        if (account_amount && account_amount > 0) {
+        // If loan account is created with amount > 0, disburse directly to primary operating account
+        if (isLoan && account_amount && account_amount > 0) {
             try {
-                const TransactionModel = require("../../../models/transaction.model");
-                const generateTransactionId = require("../../../utils/generateTransactionId");
-                const { processTransactionCommission } = require("../../../utils/commissionUtils");
-
-                // Get member details
-                const member = await MemberModel.findOne({ member_id: member_id });
-
-                // Generate transaction ID
-                const transId = await generateTransactionId();
-
-                // Create transaction record for initial deposit
-                const transaction = await TransactionModel.create({
-                    transaction_id: transId,
-                    transaction_date: date_of_opening || new Date(),
-                    member_id: member_id,
-                    account_number: newAccountNo,
-                    account_type: account_type,
-                    transaction_type: "Account Opening",
-                    description: `Initial deposit - Account ${newAccountNo}`,
-                    credit: account_amount,
-                    debit: 0,
-                    balance: account_amount,
-                    Name: member ? member.name : null,
-                    mobileno: member ? member.contactno : null,
-                    status: "Completed",
-                    collected_by: entered_by
+                const { disburseLoanToAccount } = require("../../../utils/primaryAccountHelper");
+                console.log(`🏦 Sanctioning loan ${newAccountNo}: Disbursing ₹${account_amount} to member's primary account...`);
+                const disburseResult = await disburseLoanToAccount({
+                    loanAccount: newAccount,
+                    amount: account_amount,
+                    enteredBy: entered_by,
+                    targetAccountNo: req.body.disburse_to || null
                 });
+                console.log("💰 Loan disbursement result:", disburseResult);
+            } catch (disburseErr) {
+                console.error("❌ Error disbursing loan on account creation:", disburseErr.message);
+            }
+        } else if (!isLoan) {
+            // Check if this is the member's first operating account; if so, designate as primary
+            try {
+                const { resolvePrimaryAccountForMember } = require("../../../utils/primaryAccountHelper");
+                const existingPrimary = await resolvePrimaryAccountForMember(member_id);
+                if (!existingPrimary.account || existingPrimary.account.account_no === newAccountNo) {
+                    newAccount.is_primary = true;
+                    await newAccount.save();
+                    await MemberModel.findOneAndUpdate(
+                        { $or: [{ member_id }, { member_id: String(member_id) }, { Member_id: member_id }] },
+                        { $set: { primary_account_no: newAccountNo } }
+                    );
+                }
+            } catch (primaryErr) {
+                console.error("Error setting default primary account:", primaryErr.message);
+            }
 
-                console.log(`📝 Transaction created for account opening: ${transId}`);
+            // If account is created with initial amount > 0, create transaction and trigger commission
+            if (account_amount && account_amount > 0) {
+                try {
+                    const TransactionModel = require("../../../models/transaction.model");
+                    const generateTransactionId = require("../../../utils/generateTransactionId");
+                    const { processTransactionCommission } = require("../../../utils/commissionUtils");
 
-                // Process commission for introducers
-                console.log("💰 Processing commission for account opening deposit...");
-                const commissionResult = await processTransactionCommission(transaction);
-                console.log("💰 Commission processing result:", commissionResult);
-            } catch (txError) {
-                console.error("❌ Error creating transaction/commission for account opening:", txError.message);
-                // Don't fail account creation if transaction/commission fails
+                    // Get member details
+                    const member = await MemberModel.findOne({ member_id: member_id });
+
+                    // Generate transaction ID
+                    const transId = await generateTransactionId();
+
+                    // Create transaction record for initial deposit
+                    const transaction = await TransactionModel.create({
+                        transaction_id: transId,
+                        transaction_date: date_of_opening || new Date(),
+                        member_id: member_id,
+                        account_number: newAccountNo,
+                        account_type: account_type,
+                        transaction_type: "Account Opening",
+                        description: `Initial deposit - Account ${newAccountNo}`,
+                        credit: account_amount,
+                        debit: 0,
+                        balance: account_amount,
+                        Name: member ? member.name : null,
+                        mobileno: member ? member.contactno : null,
+                        status: "Completed",
+                        collected_by: entered_by
+                    });
+
+                    console.log(`📝 Transaction created for account opening: ${transId}`);
+
+                    // Process commission for introducers
+                    console.log("💰 Processing commission for account opening deposit...");
+                    const commissionResult = await processTransactionCommission(transaction);
+                    console.log("💰 Commission processing result:", commissionResult);
+                } catch (txError) {
+                    console.error("❌ Error creating transaction/commission for account opening:", txError.message);
+                    // Don't fail account creation if transaction/commission fails
+                }
             }
         }
 
@@ -468,12 +513,52 @@ const updateAccount = async (req, res) => {
             });
         }
 
+        // Check if this is a loan account being sanctioned or approved
+        const accountGroup = await AccountGroupModel.findOne({ account_group_id: account.account_type });
+        const { isLoanAccount, disburseLoanToAccount } = require("../../../utils/primaryAccountHelper");
+        const isLoan = isLoanAccount(account, accountGroup);
+
+        const newStatus = (updateData.status || "").toLowerCase();
+        const isEligibleStatus = ["active", "approved", "sanctioned"].includes(newStatus);
+        const shouldDisburse = isLoan && !account.loan_disbursed_to && (isEligibleStatus || updateData.disburse_loan === true || updateData.action === "disburse");
+
+        // Mandatory Banking Check: Member MUST have an active operating bank account before loan approval/sanction
+        if (isLoan && (shouldDisburse || isEligibleStatus)) {
+            const { resolvePrimaryAccountForMember } = require("../../../utils/primaryAccountHelper");
+            const operatingCheck = await resolvePrimaryAccountForMember(account.member_id);
+            if (!operatingCheck || !operatingCheck.account) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Cannot approve or sanction loan: Member does not have an active operating bank account (SB/CA) for disbursement. Please open an operating account for this member first."
+                });
+            }
+        }
+
         // Update the account
         const updatedAccount = await AccountsModel.findOneAndUpdate(
             { account_id: accountId },
             { $set: updateData },
             { new: true, runValidators: true }
         );
+
+        // Execute disbursement if newly approved/sanctioned
+        if (shouldDisburse) {
+            try {
+                const disburseAmount = updateData.account_amount || account.account_amount;
+                if (disburseAmount > 0) {
+                    console.log(`🏦 Sanctioning/Approving loan ${updatedAccount.account_no}: Disbursing ₹${disburseAmount} to primary account...`);
+                    const disburseResult = await disburseLoanToAccount({
+                        loanAccount: updatedAccount,
+                        amount: disburseAmount,
+                        enteredBy: req.user?.username || req.user?.userId || "Admin",
+                        targetAccountNo: updateData.disburse_to || null
+                    });
+                    console.log("💰 UpdateAccount loan disbursement result:", disburseResult);
+                }
+            } catch (disburseErr) {
+                console.error("❌ Error disbursing loan on updateAccount:", disburseErr.message);
+            }
+        }
 
         res.status(200).json({
             success: true,
