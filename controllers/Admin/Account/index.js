@@ -274,11 +274,16 @@ const createAccount = async (req, res) => {
             newAccountNo = `${typePrefix}000001`;
         }
 
+        const isRd = groupName.includes("RECURRING") || groupName === "RD";
+        const isOperating = groupName.includes("SAVING") || groupName === "SB" || groupName.includes("CURRENT") || groupName === "CA";
+        const initialAmt = parseFloat(account_amount) || 0;
+        const openDate = date_of_opening ? new Date(date_of_opening) : new Date();
+
         // Create new account
         const newAccount = await AccountsModel.create({
             account_id: newAccountId,
             branch_id,
-            date_of_opening: date_of_opening || Date.now(),
+            date_of_opening: openDate,
             member_id,
             account_type,
             account_no: newAccountNo,
@@ -286,14 +291,20 @@ const createAccount = async (req, res) => {
             introducer,
             entered_by,
             ref_id,
-            interest_rate: (groupName.includes("SAVING") || groupName === "SB" || groupName.includes("CURRENT") || groupName === "CA") ? 0 : (interest_rate || 0),
+            interest_rate: isOperating ? 0 : (interest_rate || 0),
             duration: duration || 0,
             date_of_maturity,
             date_of_close: null,
             status: "active",
             assigned_to,
-            account_amount: account_amount || 0,
-            joint_member
+            account_amount: initialAmt,
+            joint_member,
+            last_transaction_date: openDate,
+            is_dormant: false,
+            rd_installment_amount: isRd ? (parseFloat(req.body.rd_installment_amount) || initialAmt) : null,
+            rd_total_installments: isRd ? (parseInt(duration) || 12) : null,
+            rd_paid_installments: isRd && initialAmt > 0 ? 1 : 0,
+            rd_last_installment_date: isRd && initialAmt > 0 ? openDate : null,
         });
 
         // If loan account is created with amount > 0, disburse directly to primary operating account
@@ -360,6 +371,10 @@ const createAccount = async (req, res) => {
                     });
 
                     console.log(`📝 Transaction created for account opening: ${transId}`);
+
+                    const { touchAccountActivity, recordRDInstallment } = require("../../../utils/bankingRules");
+                    await touchAccountActivity(newAccountNo);
+                    await recordRDInstallment(newAccount, account_amount);
 
                     // Process commission for introducers
                     console.log("💰 Processing commission for account opening deposit...");

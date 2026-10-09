@@ -4,6 +4,8 @@ const MemberModel = require("../../../models/member.model");
 const TransactionModel = require("../../../models/transaction.model");
 const axios = require("axios");
 const generateTransactionId = require("../../../utils/generateTransactionId");
+const { touchAccountActivity, calculatePrematureClosurePenalty, isFdGroup, isRdGroup } = require("../../../utils/bankingRules");
+const AccountGroupModel = require("../../../models/accountGroup.model");
 
 /**
  * Get all cash transactions with balance calculations
@@ -394,8 +396,13 @@ const createMaturityPayment = async (req, res) => {
         account.account_amount -= amount;
         if (account.account_amount <= 0) {
             account.status = "closed"; // Close account if balance reaches zero
+            account.date_of_close = new Date();
         }
+        account.last_transaction_date = new Date();
         await account.save();
+
+        // Revive dormant account if activity found
+        await touchAccountActivity(account.account_no);
 
         // Create cash transaction record
         const count = await CashTransactionModel.countDocuments();
@@ -475,10 +482,181 @@ const createMaturityPayment = async (req, res) => {
     }
 };
 
+/**
+ * Premature Closure of FD/RD Account
+ * Calculates penalty, closes the account, and credits the member with reduced interest.
+ */
+const prematureClosureAccount = async (req, res) => {
+    try {
+        const { account_id, member_id, payment_method = 'cash', description, reference_no, voucher_no, branch_id } = req.body;
+
+        if (!account_id || !member_id) {
+            return res.status(400).json({ success: false, message: "account_id and member_id are required" });
+        }
+
+        const account = await AccountsModel.findOne({ account_id });
+        if (!account) return res.status(404).json({ success: false, message: "Account not found" });
+
+        if (["closed", "inactive"].includes(account.status)) {
+            return res.status(400).json({ success: false, message: "Account is already closed" });
+        }
+
+        const accountGroup = await AccountGroupModel.findOne({ account_group_id: account.account_type });
+        const groupName = ((accountGroup && accountGroup.account_group_name) || "").toUpperCase();
+
+        if (!isFdGroup(groupName) && !isRdGroup(groupName)) {
+            return res.status(400).json({
+                success: false,
+                message: "Premature closure is only applicable to FD and RD accounts. For SB/CA, process a regular withdrawal."
+            });
+        }
+
+        // Maturity not yet reached — premature closure
+        const today = new Date();
+        const maturityDate = account.date_of_maturity ? new Date(account.date_of_maturity) : null;
+        const isPremature = !maturityDate || today < maturityDate;
+
+        const closure = calculatePrematureClosurePenalty(account);
+        const payoutAmount = closure.netAmount;
+        const penaltyAmount = closure.penaltyAmount;
+        const principalAmount = account.account_amount;
+
+        const member = await MemberModel.findOne({ member_id });
+        if (!member) return res.status(404).json({ success: false, message: "Member not found" });
+
+        // Close the account
+        account.status = "closed";
+        account.date_of_close = today;
+        account.account_amount = 0;
+        account.premature_closure_applied = isPremature;
+        account.premature_closure_penalty = isPremature ? penaltyAmount : 0;
+        account.interest_amount = closure.interestEarned;
+        account.net_amount = payoutAmount;
+        account.last_transaction_date = today;
+        await account.save();
+
+        // Create transaction record for closure payout
+        const txId = await generateTransactionId();
+        const closureTx = await TransactionModel.create({
+            transaction_id: txId,
+            transaction_date: today,
+            member_id,
+            account_number: account.account_no,
+            account_type: account.account_type,
+            transaction_type: isPremature ? "Premature Closure" : "Maturity Closure",
+            description: description || `${isPremature ? 'Premature' : 'Maturity'} closure of ${groupName} account ${account.account_no}` +
+                (isPremature ? `. Penalty: ₹${penaltyAmount.toFixed(2)} (Rate reduced to ${closure.revisedInterestRate}%)` : ""),
+            credit: 0,
+            debit: payoutAmount,
+            balance: 0,
+            status: "Completed",
+            reference_no: reference_no || txId,
+            Name: member.name,
+            mobileno: member.contactno,
+        });
+
+        // Create cash transaction record
+        const count = await CashTransactionModel.countDocuments();
+        const cash_transaction_id = `CASH${String(count + 1).padStart(4, '0')}`;
+        await CashTransactionModel.create({
+            cash_transaction_id,
+            transaction_date: today,
+            description: description || `Account closure payout – ${account.account_no}`,
+            reference_no: reference_no || txId,
+            credit: 0,
+            debit: payoutAmount,
+            voucher_no: voucher_no || cash_transaction_id,
+            branch_id,
+            status: "active"
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: isPremature
+                ? `Premature closure processed. Penalty of ₹${penaltyAmount.toFixed(2)} applied. Net payout: ₹${payoutAmount.toFixed(2)}`
+                : `Account closed at maturity. Net payout: ₹${payoutAmount.toFixed(2)}`,
+            data: {
+                account_no: account.account_no,
+                principal: principalAmount,
+                interest_earned: closure.interestEarned,
+                penalty_applied: isPremature ? penaltyAmount : 0,
+                net_payout: payoutAmount,
+                revised_interest_rate: isPremature ? closure.revisedInterestRate : account.interest_rate,
+                elapsed_months: closure.elapsedMonths,
+                transaction_id: txId,
+                is_premature: isPremature,
+            }
+        });
+    } catch (error) {
+        console.error("Error in prematureClosureAccount:", error);
+        return res.status(500).json({ success: false, message: "Failed to process closure", error: error.message });
+    }
+};
+
+/**
+ * Preview Premature Closure calculation without executing
+ */
+const previewPrematureClosure = async (req, res) => {
+    try {
+        const account_id = req.query.account_id || req.params.account_id || req.body.account_id;
+        if (!account_id) {
+            return res.status(400).json({ success: false, message: "account_id is required" });
+        }
+
+        const account = await AccountsModel.findOne({
+            $or: [{ account_id }, { account_no: account_id }]
+        });
+        if (!account) return res.status(404).json({ success: false, message: "Account not found" });
+
+        const accountGroup = await AccountGroupModel.findOne({ account_group_id: account.account_type });
+        const groupName = ((accountGroup && accountGroup.account_group_name) || "").toUpperCase();
+
+        if (!isFdGroup(groupName) && !isRdGroup(groupName)) {
+            return res.status(400).json({
+                success: false,
+                message: "Premature closure calculation is only applicable for FD and RD accounts."
+            });
+        }
+
+        const today = new Date();
+        const maturityDate = account.date_of_maturity ? new Date(account.date_of_maturity) : null;
+        const isPremature = !maturityDate || today < maturityDate;
+
+        const closure = calculatePrematureClosurePenalty(account);
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                account_id: account.account_id,
+                account_no: account.account_no,
+                account_type: groupName,
+                status: account.status,
+                principal_deposit: account.account_amount,
+                contract_interest_rate: account.interest_rate,
+                revised_interest_rate: isPremature ? closure.revisedInterestRate : account.interest_rate,
+                date_of_opening: account.date_of_opening,
+                date_of_maturity: account.date_of_maturity,
+                total_tenure_months: closure.totalTenureMonths,
+                elapsed_months: closure.elapsedMonths,
+                is_premature: isPremature,
+                interest_earned: closure.interestEarned,
+                penalty_amount: isPremature ? closure.penaltyAmount : 0,
+                net_payout: closure.netAmount
+            }
+        });
+    } catch (error) {
+        console.error("Error in previewPrematureClosure:", error);
+        return res.status(500).json({ success: false, message: "Failed to calculate preview", error: error.message });
+    }
+};
+
 module.exports = {
     getAllCashTransactions,
     getCashTransactionById,
     createCashTransaction,
     deleteCashTransaction,
-    createMaturityPayment
+    createMaturityPayment,
+    prematureClosureAccount,
+    previewPrematureClosure,
 };
+

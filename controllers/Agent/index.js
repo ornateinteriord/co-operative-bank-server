@@ -6,6 +6,7 @@ const AgentModel = require("../../models/agent.model");
 const AccountGroupModel = require("../../models/accountGroup.model");
 const generateTransactionId = require("../../utils/generateTransactionId");
 const { processTransactionCommission } = require("../../utils/commissionUtils");
+const { touchAccountActivity, recordRDInstallment } = require("../../utils/bankingRules");
 
 // Get all commission transactions for an agent
 const getCommissionTransactions = async (req, res) => {
@@ -307,6 +308,7 @@ const collectPayment = async (req, res) => {
                 account.status = "closed";
                 account.date_of_close = new Date();
             }
+            account.last_transaction_date = new Date();
             await account.save();
 
             txnType = "Loan Repayment";
@@ -315,7 +317,14 @@ const collectPayment = async (req, res) => {
             // Banking Logic: On deposit accounts (SB, RD, FD, Pigmy), collection increases the account balance
             newBalance = (account.account_amount || 0) + collectionAmount;
             account.account_amount = newBalance;
+            account.last_transaction_date = new Date();
             await account.save();
+
+            // Track RD installment
+            try { await recordRDInstallment(account, collectionAmount); } catch (_) {}
+
+            // Revive dormant account on new activity
+            try { await touchAccountActivity(account.account_no); } catch (_) {}
 
             txnType = "Collection";
             txnDesc = "Collected by agent";

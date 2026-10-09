@@ -25,4 +25,9 @@ router.get('/accounts/:memberId', Authenticated, authorizeRoles(["USER", "ADMIN"
 // Get member transactions (with optional account_type filter)
 router.get('/transactions/:memberId', Authenticated, authorizeRoles(["USER"]), getMemberTransactions);
 
-module.exports = router;
+// Member Deposit Certificate & Loan NOC
+const { getDepositCertificate, getLoanNOC } = require("../controllers/Admin/Banking/certificateController");
+router.get('/certificate/:accountId', Authenticated, authorizeRoles(["USER", "ADMIN", "ADMIN_01"]), getDepositCertificate);
+router.get('/loan-noc/:accountId', Authenticated, authorizeRoles(["USER", "ADMIN", "ADMIN_01"]), getLoanNOC);
+
+module.exports = router;

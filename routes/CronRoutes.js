@@ -51,4 +51,65 @@ router.get("/roi", async (req, res) => {
     }
 });
 
+/**
+ * @route   GET /api/cron/daily-banking
+ * @desc    Trigger Daily Banking Operations (Maturity, Dormant, Overdue Loans, RD Penalties, SB Interest)
+ * @access  Protected (CRON_SECRET)
+ */
+router.get("/daily-banking", async (req, res) => {
+    const authHeader = req.headers.authorization;
+    const cronSecret = process.env.CRON_SECRET;
+
+    console.log(`⏰ [CRON] [${new Date().toISOString()}] Daily Banking Operations Trigger received.`);
+    
+    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+        console.warn("⚠️ [CRON] Unauthorized Daily Banking trigger attempt.");
+        return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const {
+        processMaturedAccounts,
+        processDormantAccounts,
+        processOverdueLoans,
+        processRDMissedInstallments,
+        processSBQuarterlyInterest,
+    } = require("../utils/maturityScheduler");
+
+    const startTime = Date.now();
+    try {
+        console.log("🚀 [CRON] Starting Daily Banking Jobs...");
+        const maturityRes = await processMaturedAccounts();
+        const dormantRes = await processDormantAccounts();
+        const overdueRes = await processOverdueLoans();
+        const rdRes = await processRDMissedInstallments();
+        const sbRes = await processSBQuarterlyInterest();
+
+        const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+        console.log(`✅ [CRON] Daily Banking Jobs finished in ${duration}s`);
+
+        return res.status(200).json({
+            success: true,
+            message: "Daily banking jobs completed successfully",
+            duration: `${duration}s`,
+            results: {
+                maturity: maturityRes,
+                dormant: dormantRes,
+                overdue_loans: overdueRes,
+                rd_installments: rdRes,
+                sb_interest: sbRes,
+            }
+        });
+    } catch (error) {
+        const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+        console.error(`❌ [CRON] Daily Banking Jobs failed after ${duration}s:`, error.message);
+        return res.status(500).json({
+            success: false,
+            message: "Daily banking execution error",
+            duration: `${duration}s`,
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;
+

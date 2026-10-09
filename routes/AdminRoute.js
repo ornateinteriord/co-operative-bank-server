@@ -93,4 +93,27 @@ router.get('/get-dashboard-counts', Authenticated, authorizeRoles("ADMIN", "ADMI
 router.get('/get-recent-data', Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), getRecentData)
 router.post("/maturity-payment", Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), createMaturityPayment);
 
+// Banking Certificates & NOC routes
+const { getDepositCertificate, getLoanNOC } = require("../controllers/Admin/Banking/certificateController");
+router.get('/accounts/:accountId/certificate', Authenticated, authorizeRoles("ADMIN", "ADMIN_01", "AGENT"), getDepositCertificate);
+router.get('/loans/:accountId/noc', Authenticated, authorizeRoles("ADMIN", "ADMIN_01", "AGENT"), getLoanNOC);
+
+// Banking Daily Schedulers & Cron Control routes
+const {
+    getSchedulerStatus,
+    runMaturityJob,
+    runDormantJob,
+    runOverdueJob,
+    runRDPenaltyJob,
+    runSBInterestJob,
+} = require("../controllers/Admin/Banking/schedulerController");
+
+router.get('/banking/scheduler/status', Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), getSchedulerStatus);
+router.post('/banking/scheduler/run-maturity', Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), runMaturityJob);
+router.post('/banking/scheduler/run-dormant', Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), runDormantJob);
+router.post('/banking/scheduler/run-overdue', Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), runOverdueJob);
+router.post('/banking/scheduler/run-rd-penalty', Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), runRDPenaltyJob);
+router.post('/banking/scheduler/run-sb-interest', Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), runSBInterestJob);
+
 module.exports = router;
+

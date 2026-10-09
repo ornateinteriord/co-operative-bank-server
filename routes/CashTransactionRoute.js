@@ -5,7 +5,9 @@ const {
     getCashTransactionById,
     createCashTransaction,
     deleteCashTransaction,
-    // createMaturityPayment
+    createMaturityPayment,
+    prematureClosureAccount,
+    previewPrematureClosure,
 } = require("../controllers/Admin/Banking/cashTransaction");
 const Authenticated = require("../middlewares/auth");
 const authorizeRoles = require("../middlewares/authorizeRole");
@@ -16,7 +18,15 @@ router.get("/:id", Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), getCashTr
 router.post("/", Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), createCashTransaction);
 router.delete("/:id", Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), deleteCashTransaction);
 
-// Route for creating maturity payments with Cashfree Payout
+// Maturity payout (online/cash/cheque)
+router.post("/maturity-payment", Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), createMaturityPayment);
+
+// Premature closure of FD/RD with penalty calculation
+router.get("/premature-closure/preview", Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), previewPrematureClosure);
+router.post("/premature-closure/preview", Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), previewPrematureClosure);
+router.post("/premature-closure", Authenticated, authorizeRoles("ADMIN", "ADMIN_01"), prematureClosureAccount);
+
 
 
 module.exports = router;
+

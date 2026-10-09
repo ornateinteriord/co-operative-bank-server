@@ -3,6 +3,7 @@ const cashfreeConfig = require("../../utils/cashfree");
 const crypto = require("crypto");
 const axios = require("axios");
 const { processTransactionCommission } = require("../../utils/commissionUtils");
+const { validateWithdrawal, touchAccountActivity, recordRDInstallment } = require("../../utils/bankingRules");
 // Unified format for Transaction ID
 const generateTransactionId = () => `TXN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
@@ -585,20 +586,30 @@ exports.handleCashfreeWebhook = async (req, res) => {
                         newAccountNo = `${typePrefix}000001`;
                     }
 
+                    const isRd = groupName.includes("RECURRING") || groupName === "RD";
+                    const isOperating = groupName.includes("SAVING") || groupName === "SB" || groupName.includes("CURRENT") || groupName === "CA";
+                    const todayDate = new Date();
+
                     // Create new account
                     const newAccount = await AccountsModel.create({
                         account_id: newAccountId,
-                        date_of_opening: new Date(),
+                        date_of_opening: todayDate,
                         member_id: transaction.member_id,
                         account_type: accountType,
                         account_no: newAccountNo,
                         account_operation: account_operation || "Single",
                         entered_by: transaction.member_id,
-                        interest_rate: (groupName.includes("SAVING") || groupName === "SB" || groupName.includes("CURRENT") || groupName === "CA") ? 0 : (interest_rate || 0),
+                        interest_rate: isOperating ? 0 : (interest_rate || 0),
                         duration: duration || 0,
                         date_of_maturity: date_of_maturity,
                         status: "active",
-                        account_amount: transaction.credit
+                        account_amount: transaction.credit,
+                        last_transaction_date: todayDate,
+                        is_dormant: false,
+                        rd_installment_amount: isRd ? transaction.credit : null,
+                        rd_total_installments: isRd ? (parseInt(duration) || 12) : null,
+                        rd_paid_installments: isRd ? 1 : 0,
+                        rd_last_installment_date: isRd ? todayDate : null,
                     });
 
                     accountNo = newAccountNo;
@@ -629,6 +640,10 @@ exports.handleCashfreeWebhook = async (req, res) => {
                     transaction.balance = account.account_amount;
                     transaction.description = `Online Top-up to Account ${transaction.account_number} (Success)`;
                     console.log("✅ Account balance updated:", account.account_amount);
+
+                    // Touch activity & record RD installment if applicable
+                    await touchAccountActivity(account.account_no);
+                    await recordRDInstallment(account, transaction.credit);
                 } else {
                     console.warn("⚠️ Account not found for balance update");
                     transaction.description = `Payment success but account ${transaction.account_number} not found for balance update`;
@@ -953,6 +968,7 @@ exports.transferMoney = async (req, res) => {
         // Perform the transfer
         // Deduct from sender
         senderAccount.account_amount -= amount;
+        senderAccount.last_transaction_date = new Date();
         await senderAccount.save();
 
         // Update receiver account balance
@@ -966,12 +982,19 @@ exports.transferMoney = async (req, res) => {
                 receiverAccount.status = "closed";
                 receiverAccount.date_of_close = new Date();
             }
+            receiverAccount.last_transaction_date = new Date();
             await receiverAccount.save();
         } else {
             // Standard deposit credit
             receiverNewBalance = (receiverAccount.account_amount || 0) + amount;
             receiverAccount.account_amount = receiverNewBalance;
+            receiverAccount.last_transaction_date = new Date();
             await receiverAccount.save();
+
+            // Track RD installment if receiver is an RD account
+            try { await recordRDInstallment(receiverAccount, amount); } catch (_) {}
+            // Revive dormant if applicable
+            try { await touchAccountActivity(receiverAccount.account_no); } catch (_) {}
         }
 
         // Create debit transaction for sender
@@ -1145,22 +1168,12 @@ exports.requestWithdraw = async (req, res) => {
             });
         }
 
-        // Banking Logic: Check that withdrawal is NOT from a loan account
-        const { isLoanAccount: checkIsLoanAcc } = require("../../utils/primaryAccountHelper");
-        const AccountGroupModelForWithdraw = require("../../models/accountGroup.model");
-        const accountGroup = await AccountGroupModelForWithdraw.findOne({ account_group_id: account.account_type });
-        if (checkIsLoanAcc(account, accountGroup)) {
+        // Banking Logic: Validate withdrawal — checks loan restriction, dormant, min balance
+        const withdrawalValidation = await validateWithdrawal(account, amount);
+        if (!withdrawalValidation.valid) {
             return res.status(400).json({
                 success: false,
-                message: "Withdrawals cannot be processed from a loan account. Withdrawals are only permitted from operating accounts (Savings/Current)."
-            });
-        }
-
-        // Check if account has sufficient balance
-        if (account.account_amount < amount) {
-            return res.status(400).json({
-                success: false,
-                message: `Insufficient balance. Available: ₹${account.account_amount}, Required: ₹${amount}`
+                message: withdrawalValidation.message
             });
         }
 
