@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const MemberModel = require("../../../models/member.model");
 const UserModel = require("../../../models/user.model");
 const { addMemberHierarchy } = require("../../../utils/hierarchyHelper");
