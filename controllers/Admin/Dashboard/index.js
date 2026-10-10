@@ -108,12 +108,34 @@ const getRecentData = async (req, res) => {
             .limit(10)
             .lean();
 
+        const normalizedRecentMembers = (recentMembers || []).map(m => {
+            const member_id = m.member_id || m.Member_id || "";
+            const name = m.name || m.Name || "";
+            const contactno = (m.contactno || m.mobileno || "").toString().trim();
+            const emailid = m.emailid || m.email || "";
+            const date_of_joining = m.date_of_joining || m.Date_of_joining || m.createdAt || "";
+
+            return {
+                ...m,
+                member_id,
+                Member_id: member_id,
+                name,
+                Name: name,
+                contactno,
+                mobileno: contactno,
+                emailid,
+                email: emailid,
+                date_of_joining,
+                Date_of_joining: date_of_joining,
+            };
+        });
+
         res.status(200).json({
             success: true,
             message: "Recent data fetched successfully",
             data: {
                 recentAccounts,
-                recentMembers
+                recentMembers: normalizedRecentMembers
             }
         });
     } catch (error) {

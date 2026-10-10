@@ -192,9 +192,13 @@ const getMembers = async (req, res) => {
         if (search) {
             filter.$or = [
                 { member_id: { $regex: search, $options: "i" } },
+                { Member_id: { $regex: search, $options: "i" } },
                 { name: { $regex: search, $options: "i" } },
+                { Name: { $regex: search, $options: "i" } },
                 { contactno: { $regex: search, $options: "i" } },
-                { emailid: { $regex: search, $options: "i" } }
+                { mobileno: { $regex: search, $options: "i" } },
+                { emailid: { $regex: search, $options: "i" } },
+                { email: { $regex: search, $options: "i" } }
             ];
         }
 
@@ -207,10 +211,47 @@ const getMembers = async (req, res) => {
 
         const totalMembers = await MemberModel.countDocuments(filter);
 
+        const normalizedMembers = members.map(m => {
+            const doc = m.toObject ? m.toObject() : { ...m };
+            const member_id = doc.member_id || doc.Member_id || "";
+            const name = doc.name || doc.Name || "";
+            const contactno = (doc.contactno || doc.mobileno || "").toString().trim();
+            const emailid = doc.emailid || doc.email || "";
+            const father_name = doc.father_name || doc.Father_name || "";
+            const pan_no = doc.pan_no || doc.Pan_no || "";
+            const aadharcard_no = doc.aadharcard_no || doc.Aadharcard || doc.aadharno || "";
+            const nominee = doc.nominee || doc.Nominee_name || "";
+            const relation = doc.relation || doc.Nominee_Relation || "";
+            const date_of_joining = doc.date_of_joining || doc.Date_of_joining || doc.createdAt || "";
+
+            return {
+                ...doc,
+                member_id,
+                Member_id: member_id,
+                name,
+                Name: name,
+                contactno,
+                mobileno: contactno,
+                emailid,
+                email: emailid,
+                father_name,
+                Father_name: father_name,
+                pan_no,
+                Pan_no: pan_no,
+                aadharcard_no,
+                nominee,
+                Nominee_name: nominee,
+                relation,
+                Nominee_Relation: relation,
+                date_of_joining,
+                Date_of_joining: date_of_joining,
+            };
+        });
+
         res.status(200).json({
             success: true,
             message: "Members fetched successfully",
-            data: members,
+            data: normalizedMembers,
             pagination: {
                 total: totalMembers,
                 page: parseInt(page),
@@ -349,6 +390,10 @@ const getMemberById = async (req, res) => {
             Father_name: raw.Father_name || raw.father_name || "",
             contactno: (raw.contactno || raw.mobileno || "").toString().trim(),
             mobileno: (raw.mobileno || raw.contactno || "").toString().trim(),
+            emailid: raw.emailid || raw.email || "",
+            email: raw.email || raw.emailid || "",
+            date_of_joining: raw.date_of_joining || raw.Date_of_joining || raw.createdAt || "",
+            Date_of_joining: raw.Date_of_joining || raw.date_of_joining || raw.createdAt || "",
             dob: raw.dob || raw.DOB || "",
             gender: raw.gender || raw.Gender || "",
             address: raw.address || raw.Address || "",
