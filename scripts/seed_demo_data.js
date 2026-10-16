@@ -1,14 +1,15 @@
 /**
  * ============================================================================
- * UDUPI CO-OPERATIVE BANK - COMPREHENSIVE DEMO DATA SEED SCRIPT
+ * UDUPI CO-OPERATIVE BANK - COMPREHENSIVE DEMO DATA SEED SCRIPT (16-25 RECORDS)
  * ============================================================================
- * Creates realistic demonstration data for Coastal Karnataka / Udupi region:
+ * Generates extensive demonstration data for Coastal Karnataka / Udupi region:
  *  - 5 Branches (Udupi Main, Manipal, Kundapura, Mangaluru, Karkala)
- *  - 5 Agents (with login access)
- *  - 8 Members / Users (with realistic profiles, KYC, Nominees, logins)
- *  - Accounts: SB (Savings), CA (Current), FD (Fixed Deposit), RD (Recurring), Pigmy
- *  - Loans: Gold Loan, Agri Loan, Business Loan, Vehicle Loan, Personal Loan
- *  - Passbook Transactions with realistic running balances and descriptions
+ *  - 8 Field Agents (with login access)
+ *  - 25 Members / Users (Complete KYC, Nominee, logins, passwords)
+ *  - 50+ Bank Accounts (Savings, Current, Fixed Deposits, Recurring, Pigmy)
+ *  - 25 Loans covering all categories (Gold, Agri, Vehicle, Business, Personal,
+ *    Mortgage, Education, Overdraft, Pigmy Loan, Pigmy Gold Loan)
+ *  - Hundreds of Passbook Transactions with precise running balance calculations
  * ============================================================================
  */
 
@@ -18,13 +19,11 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const BranchModel = require('../models/branch.model');
 const AccountGroupModel = require('../models/accountGroup.model');
-const AccountBookModel = require('../models/accountBook.model');
 const MemberModel = require('../models/member.model');
 const AgentModel = require('../models/agent.model');
 const AccountsModel = require('../models/accounts.model');
 const TransactionModel = require('../models/transaction.model');
 const UserModel = require('../models/user.model');
-const AdminModel = require('../models/Admin/Admin');
 
 const DEMO_PASSWORD = "password123";
 
@@ -34,9 +33,9 @@ const getTxId = () => `TXN_${++txCounter}_${Math.floor(100 + Math.random() * 900
 
 async function seedData() {
     try {
-        console.log("=========================================================");
-        console.log("🚀 Starting Udupi Co-operative Bank Demo Data Seeding...");
-        console.log("=========================================================\n");
+        console.log("=====================================================================");
+        console.log("🚀 Starting Udupi Co-operative Bank Demo Data Seeding (25 Members)...");
+        console.log("=====================================================================\n");
 
         if (!process.env.MONGO_URI) {
             throw new Error("MONGO_URI not configured in .env file!");
@@ -48,7 +47,7 @@ async function seedData() {
         // ---------------------------------------------------------------------
         // 1. SEED BRANCHES (Coastal Karnataka / Udupi & DK District)
         // ---------------------------------------------------------------------
-        console.log("🏦 [1/6] Seeding Branches...");
+        console.log("🏦 [1/6] Seeding 5 Branches...");
         const branches = [
             {
                 branch_id: "BR001",
@@ -142,7 +141,7 @@ async function seedData() {
         console.log(`   ✨ ${branches.length} Branches synced successfully.`);
 
         // ---------------------------------------------------------------------
-        // 2. ENSURE STANDARD ACCOUNT GROUPS EXIST
+        // 2. VERIFY / SEED ACCOUNT GROUPS
         // ---------------------------------------------------------------------
         console.log("\n📁 [2/6] Verifying Account Groups...");
         const accountGroups = [
@@ -175,9 +174,9 @@ async function seedData() {
         console.log(`   ✨ ${accountGroups.length} Account Groups ready.`);
 
         // ---------------------------------------------------------------------
-        // 3. SEED AGENTS (Coastal Karnataka Field Agents)
+        // 3. SEED 8 FIELD AGENTS
         // ---------------------------------------------------------------------
-        console.log("\n👨‍💼 [3/6] Seeding Agents...");
+        console.log("\n👨‍💼 [3/6] Seeding 8 Field Agents...");
         const agents = [
             {
                 agent_id: "A20002",
@@ -273,6 +272,63 @@ async function seedData() {
                 date_of_joining: new Date("2019-10-15"),
                 commission_eligible: true,
                 commission_balance: 22100
+            },
+            {
+                agent_id: "A20007",
+                name: "Divya Shetty",
+                gender: "Female",
+                dob: new Date("1990-09-14"),
+                address: "Main Road, Brahmavara Post, Udupi",
+                emailid: "divya.shetty@udupibank.co.in",
+                mobile: "9845667788",
+                pan_no: "GHYPS1234R",
+                aadharcard_no: "907623456789",
+                branch_id: "BR001",
+                designation: "Women Empowerment & Credit Agent",
+                status: "active",
+                role: "AGENT",
+                password: DEMO_PASSWORD,
+                date_of_joining: new Date("2021-08-01"),
+                commission_eligible: true,
+                commission_balance: 16700
+            },
+            {
+                agent_id: "A20008",
+                name: "Chethan Kumar",
+                gender: "Male",
+                dob: new Date("1986-12-05"),
+                address: "Kaup Beach Road, Near Light House, Kaup",
+                emailid: "chethan.kumar@udupibank.co.in",
+                mobile: "9845778899",
+                pan_no: "HHYPK2345S",
+                aadharcard_no: "018734567890",
+                branch_id: "BR001",
+                designation: "Coastal Business Agent",
+                status: "active",
+                role: "AGENT",
+                password: DEMO_PASSWORD,
+                date_of_joining: new Date("2020-04-10"),
+                commission_eligible: true,
+                commission_balance: 13900
+            },
+            {
+                agent_id: "A20009",
+                name: "Shailesh Rao",
+                gender: "Male",
+                dob: new Date("1989-04-20"),
+                address: "Byndoor Market Circle, Byndoor",
+                emailid: "shailesh.rao@udupibank.co.in",
+                mobile: "9845889900",
+                pan_no: "IHYPR3456T",
+                aadharcard_no: "129845678901",
+                branch_id: "BR003",
+                designation: "Agri Credit Agent",
+                status: "active",
+                role: "AGENT",
+                password: DEMO_PASSWORD,
+                date_of_joining: new Date("2022-01-15"),
+                commission_eligible: true,
+                commission_balance: 11200
             }
         ];
 
@@ -283,7 +339,6 @@ async function seedData() {
                 { upsert: true, new: true }
             );
 
-            // Also ensure UserModel entry exists for Agent login
             await UserModel.findOneAndUpdate(
                 { user_id: ag.agent_id },
                 {
@@ -301,13 +356,13 @@ async function seedData() {
                 { upsert: true, new: true }
             );
         }
-        console.log(`   ✨ ${agents.length} Agents created with login ID & password: "${DEMO_PASSWORD}".`);
+        console.log(`   ✨ ${agents.length} Agents synced with password "${DEMO_PASSWORD}".`);
 
         // ---------------------------------------------------------------------
-        // 4. SEED MEMBERS / USERS (Authentic Karnataka / Udupi People)
+        // 4. SEED 25 MEMBERS / USERS (Authentic Karnataka / Udupi & DK Names)
         // ---------------------------------------------------------------------
-        console.log("\n👥 [4/6] Seeding Members & Login Accounts...");
-        const membersData = [
+        console.log("\n👥 [4/6] Seeding 25 Members & Login Accounts...");
+        const rawMembers = [
             {
                 id: "BMS000101",
                 name: "Raghavendra Rao",
@@ -317,21 +372,18 @@ async function seedData() {
                 father: "Venkataramana Rao",
                 mobile: "9845001101",
                 email: "raghavendra.rao.udupi@gmail.com",
-                door: "Door No. 3-45",
                 address: "Sri Krishna Krupa, Kunjibettu, Udupi",
                 city: "Udupi",
-                state: "Karnataka",
                 pincode: "576102",
                 pan: "ABCDE1234F",
                 aadhaar: "345678901234",
                 voter: "KA/12/084/123456",
                 occupation: "Senior Software Architect",
                 nominee: "Smt. Shailaja Rao",
-                nominee_relation: "Wife",
+                relation: "Wife",
                 nominee_age: 34,
                 branch: "BR001",
-                introducer: "A20002",
-                introducer_name: "Suresh Poojary",
+                introducer: "A20002"
             },
             {
                 id: "BMS000102",
@@ -342,21 +394,18 @@ async function seedData() {
                 father: "Panduranga Nayak",
                 mobile: "9845001102",
                 email: "deepa.nayak.edu@gmail.com",
-                door: "Flat 202, Brahmagiri Enclave",
-                address: "Brahmagiri, Court Back Road, Udupi",
+                address: "Flat 202, Brahmagiri Enclave, Brahmagiri, Udupi",
                 city: "Udupi",
-                state: "Karnataka",
                 pincode: "576101",
                 pan: "BCDEF2345G",
                 aadhaar: "456789012345",
                 voter: "KA/12/084/234567",
                 occupation: "High School Science Teacher",
                 nominee: "Sathish Nayak",
-                nominee_relation: "Brother",
+                relation: "Brother",
                 nominee_age: 36,
                 branch: "BR001",
-                introducer: "A20002",
-                introducer_name: "Suresh Poojary",
+                introducer: "A20002"
             },
             {
                 id: "BMS000103",
@@ -367,21 +416,18 @@ async function seedData() {
                 father: "Mahabala Shetty",
                 mobile: "9845001103",
                 email: "ganesh.shetty.shirva@gmail.com",
-                door: "Ganesh Farmhouse",
-                address: "Mattar Road, Shirva, Kaup Taluk",
+                address: "Ganesh Farmhouse, Mattar Road, Shirva, Kaup",
                 city: "Udupi",
-                state: "Karnataka",
                 pincode: "574116",
                 pan: "CDEFG3456H",
                 aadhaar: "567890123456",
                 voter: "KA/12/085/345678",
                 occupation: "Dairy Farmer & Areca Grower",
                 nominee: "Sujatha Shetty",
-                nominee_relation: "Wife",
+                relation: "Wife",
                 nominee_age: 42,
                 branch: "BR001",
-                introducer: "A20002",
-                introducer_name: "Suresh Poojary",
+                introducer: "A20002"
             },
             {
                 id: "BMS000104",
@@ -392,21 +438,18 @@ async function seedData() {
                 father: "Subramanya Adiga",
                 mobile: "9845001104",
                 email: "ananya.adiga.design@gmail.com",
-                door: "Shop 4, Santhekatte Bazaar",
-                address: "Santhekatte, Kallianpur Post, Udupi",
+                address: "Shop 4, Santhekatte Bazaar, Santhekatte, Udupi",
                 city: "Udupi",
-                state: "Karnataka",
                 pincode: "576105",
                 pan: "DEFGH4567I",
                 aadhaar: "678901234567",
                 voter: "KA/12/084/456789",
                 occupation: "Boutique Owner & Fashion Designer",
                 nominee: "Subramanya Adiga",
-                nominee_relation: "Father",
+                relation: "Father",
                 nominee_age: 62,
                 branch: "BR002",
-                introducer: "A20003",
-                introducer_name: "Ramesh Acharya",
+                introducer: "A20003"
             },
             {
                 id: "BMS000105",
@@ -417,21 +460,18 @@ async function seedData() {
                 father: "Soma Poojary",
                 mobile: "9845001105",
                 email: "praveen.poojary.malpe@gmail.com",
-                door: "Fisheries Colony No. 12",
-                address: "Near Malpe Fisheries Port, Malpe",
+                address: "Fisheries Colony No. 12, Malpe Harbour, Malpe",
                 city: "Udupi",
-                state: "Karnataka",
                 pincode: "576108",
                 pan: "EFGHI5678J",
                 aadhaar: "789012345678",
                 voter: "KA/12/084/567890",
                 occupation: "Marine Fisheries Merchant",
                 nominee: "Latha P. Poojary",
-                nominee_relation: "Wife",
+                relation: "Wife",
                 nominee_age: 38,
                 branch: "BR001",
-                introducer: "A20002",
-                introducer_name: "Suresh Poojary",
+                introducer: "A20002"
             },
             {
                 id: "BMS000106",
@@ -442,21 +482,18 @@ async function seedData() {
                 father: "Narayana Kudva",
                 mobile: "9845001106",
                 email: "geetha.kudva.karkala@gmail.com",
-                door: "House 24, Anekere Road",
-                address: "Near Gomateshwara Hill, Karkala",
+                address: "House 24, Anekere Road, Near Gomateshwara, Karkala",
                 city: "Karkala",
-                state: "Karnataka",
                 pincode: "574104",
                 pan: "FGHIJ6789K",
                 aadhaar: "890123456789",
                 voter: "KA/12/086/678901",
                 occupation: "Artisan & Senior Citizen",
                 nominee: "Mahesh Kudva",
-                nominee_relation: "Son",
+                relation: "Son",
                 nominee_age: 35,
                 branch: "BR005",
-                introducer: "A20006",
-                introducer_name: "Venkatesh Bhat",
+                introducer: "A20006"
             },
             {
                 id: "BMS000107",
@@ -467,21 +504,18 @@ async function seedData() {
                 father: "Laxman Kamath",
                 mobile: "9845001107",
                 email: "dinesh.kamath.knd@gmail.com",
-                door: "Kamath Complex, Main Road",
-                address: "Parijatha Circle, Kundapura",
+                address: "Kamath Complex, Parijatha Circle, Kundapura",
                 city: "Kundapura",
-                state: "Karnataka",
                 pincode: "576201",
                 pan: "GHIJK7890L",
                 aadhaar: "901234567890",
                 voter: "KA/12/087/789012",
                 occupation: "Class-1 Electrical Contractor",
                 nominee: "Rashmi Kamath",
-                nominee_relation: "Wife",
+                relation: "Wife",
                 nominee_age: 36,
                 branch: "BR003",
-                introducer: "A20004",
-                introducer_name: "Manjunath Hegde",
+                introducer: "A20004"
             },
             {
                 id: "BMS000108",
@@ -492,25 +526,396 @@ async function seedData() {
                 father: "Subraya Bhat",
                 mobile: "9845001108",
                 email: "ashwath.bhat.hebri@gmail.com",
-                door: "Sri Nilaya, Agumbe Road",
-                address: "Hebri Post, Karkala Taluk",
+                address: "Sri Nilaya, Agumbe Road, Hebri Post",
                 city: "Hebri",
-                state: "Karnataka",
                 pincode: "576112",
                 pan: "HIJKL8901M",
                 aadhaar: "012345678901",
                 voter: "KA/12/086/890123",
                 occupation: "Spices & Rubber Planter",
                 nominee: "Shobha Bhat",
-                nominee_relation: "Wife",
+                relation: "Wife",
                 nominee_age: 49,
                 branch: "BR005",
-                introducer: "A20006",
-                introducer_name: "Venkatesh Bhat",
+                introducer: "A20006"
+            },
+            {
+                id: "BMS000109",
+                name: "Sneha Suvarna",
+                gender: "Female",
+                dob: "1989-11-12",
+                age: 36,
+                father: "Keshava Suvarna",
+                mobile: "9845001109",
+                email: "sneha.suvarna.mnp@gmail.com",
+                address: "Professors Quarters, End Point, Manipal",
+                city: "Manipal",
+                pincode: "576104",
+                pan: "IJKLM9012N",
+                aadhaar: "123456789012",
+                voter: "KA/12/084/901234",
+                occupation: "Associate Professor in Biotechnology",
+                nominee: "Rohit Suvarna",
+                relation: "Husband",
+                nominee_age: 39,
+                branch: "BR002",
+                introducer: "A20003"
+            },
+            {
+                id: "BMS000110",
+                name: "Shridhar Acharya",
+                gender: "Male",
+                dob: "1975-03-28",
+                age: 51,
+                father: "Vasudeva Acharya",
+                mobile: "9845001110",
+                email: "shridhar.acharya.gold@gmail.com",
+                address: "Car Street, Near Sanskrit College, Udupi",
+                city: "Udupi",
+                pincode: "576101",
+                pan: "JKLMN0123O",
+                aadhaar: "234567890123",
+                voter: "KA/12/084/012345",
+                occupation: "Traditional Gold & Silver Jeweller",
+                nominee: "Vidya Acharya",
+                relation: "Wife",
+                nominee_age: 46,
+                branch: "BR001",
+                introducer: "A20002"
+            },
+            {
+                id: "BMS000111",
+                name: "Manjula Kulal",
+                gender: "Female",
+                dob: "1984-07-16",
+                age: 41,
+                father: "Sheena Kulal",
+                mobile: "9845001111",
+                email: "manjula.kulal.shg@gmail.com",
+                address: "Stree Shakthi Bhavan, Padubidri Market, Padubidri",
+                city: "Kaup",
+                pincode: "574111",
+                pan: "KLMNO1234P",
+                aadhaar: "345678901234",
+                voter: "KA/12/085/123456",
+                occupation: "Self Help Group President & Handloom Weaver",
+                nominee: "Ravi Kulal",
+                relation: "Husband",
+                nominee_age: 44,
+                branch: "BR001",
+                introducer: "A20008"
+            },
+            {
+                id: "BMS000112",
+                name: "Sandeep Mendon",
+                gender: "Male",
+                dob: "1988-10-08",
+                age: 37,
+                father: "Babu Mendon",
+                mobile: "9845001112",
+                email: "sandeep.mendon.fish@gmail.com",
+                address: "Gopadi Beach Road, Gopadi Post, Kundapura",
+                city: "Kundapura",
+                pincode: "576211",
+                pan: "LMNOP2345Q",
+                aadhaar: "456789012345",
+                voter: "KA/12/087/234567",
+                occupation: "Mechanized Trawler Owner & Operator",
+                nominee: "Mamatha Mendon",
+                relation: "Wife",
+                nominee_age: 33,
+                branch: "BR003",
+                introducer: "A20004"
+            },
+            {
+                id: "BMS000113",
+                name: "Poornima Hegde",
+                gender: "Female",
+                dob: "1981-05-22",
+                age: 44,
+                father: "Ramakrishna Hegde",
+                mobile: "9845001113",
+                email: "poornima.hegde.edu@gmail.com",
+                address: "Kodi Sea Walk Road, Kodi, Kundapura",
+                city: "Kundapura",
+                pincode: "576261",
+                pan: "MNOPQ3456R",
+                aadhaar: "567890123456",
+                voter: "KA/12/087/345678",
+                occupation: "Govt School Headmistress",
+                nominee: "Sudarshan Hegde",
+                relation: "Husband",
+                nominee_age: 48,
+                branch: "BR003",
+                introducer: "A20004"
+            },
+            {
+                id: "BMS000114",
+                name: "Harish Devadiga",
+                gender: "Male",
+                dob: "1986-02-14",
+                age: 40,
+                father: "Anand Devadiga",
+                mobile: "9845001114",
+                email: "harish.devadiga.music@gmail.com",
+                address: "Near Venkataramana Temple, Car Street, Karkala",
+                city: "Karkala",
+                pincode: "574104",
+                pan: "NOPQR4567S",
+                aadhaar: "678901234567",
+                voter: "KA/12/086/456789",
+                occupation: "Traditional Instrument Manufacturer & Merchant",
+                nominee: "Shwetha Devadiga",
+                relation: "Wife",
+                nominee_age: 36,
+                branch: "BR005",
+                introducer: "A20006"
+            },
+            {
+                id: "BMS000115",
+                name: "Sunitha Alva",
+                gender: "Female",
+                dob: "1979-09-03",
+                age: 46,
+                father: "Bhoja Alva",
+                mobile: "9845001115",
+                email: "sunitha.alva.farm@gmail.com",
+                address: "Alva Green Heritage, Kuntalpady, Karkala",
+                city: "Karkala",
+                pincode: "574104",
+                pan: "OPQRS5678T",
+                aadhaar: "789012345678",
+                voter: "KA/12/086/567890",
+                occupation: "Agro-Tourism Homestay Proprietor",
+                nominee: "Prakash Alva",
+                relation: "Husband",
+                nominee_age: 50,
+                branch: "BR005",
+                introducer: "A20006"
+            },
+            {
+                id: "BMS000116",
+                name: "Prashanth Kotian",
+                gender: "Male",
+                dob: "1983-06-25",
+                age: 42,
+                father: "Monappa Kotian",
+                mobile: "9845001116",
+                email: "prashanth.kotian.trade@gmail.com",
+                address: "Kotian Building, K.S. Rao Road, Hampankatta, Mangaluru",
+                city: "Mangaluru",
+                pincode: "575001",
+                pan: "PQRST6789U",
+                aadhaar: "890123456789",
+                voter: "KA/12/088/678901",
+                occupation: "Hardware & Sanitary Fittings Merchant",
+                nominee: "Vanitha Kotian",
+                relation: "Wife",
+                nominee_age: 39,
+                branch: "BR004",
+                introducer: "A20005"
+            },
+            {
+                id: "BMS000117",
+                name: "Kavitha Shenoy",
+                gender: "Female",
+                dob: "1993-12-18",
+                age: 32,
+                father: "Damodar Shenoy",
+                mobile: "9845001117",
+                email: "kavitha.shenoy.health@gmail.com",
+                address: "Kadri Hills, Near Temple Road, Mangaluru",
+                city: "Mangaluru",
+                pincode: "575002",
+                pan: "QRSTU7890V",
+                aadhaar: "901234567890",
+                voter: "KA/12/088/789012",
+                occupation: "Consultant Clinical Nutritionist",
+                nominee: "Gautham Shenoy",
+                relation: "Husband",
+                nominee_age: 34,
+                branch: "BR004",
+                introducer: "A20005"
+            },
+            {
+                id: "BMS000118",
+                name: "Naveen Kumar Shetty",
+                gender: "Male",
+                dob: "1980-04-05",
+                age: 45,
+                father: "Sadashiva Shetty",
+                mobile: "9845001118",
+                email: "naveen.shetty.logistics@gmail.com",
+                address: "Surathkal Junction, NH-66, Surathkal",
+                city: "Mangaluru",
+                pincode: "575014",
+                pan: "RSTUV8901W",
+                aadhaar: "012345678901",
+                voter: "KA/12/088/890123",
+                occupation: "Coastal Container Transporter",
+                nominee: "Rekha N. Shetty",
+                relation: "Wife",
+                nominee_age: 41,
+                branch: "BR004",
+                introducer: "A20005"
+            },
+            {
+                id: "BMS000119",
+                name: "Mamatha Ballal",
+                gender: "Female",
+                dob: "1982-08-30",
+                age: 43,
+                father: "Chandrahas Ballal",
+                mobile: "9845001119",
+                email: "mamatha.ballal.bmv@gmail.com",
+                address: "Ballal Compound, Car Street, Brahmavara",
+                city: "Brahmavara",
+                pincode: "576213",
+                pan: "STUVW9012X",
+                aadhaar: "123456789012",
+                voter: "KA/12/084/901234",
+                occupation: "Agricultural Co-operative Society Director",
+                nominee: "Pradeep Ballal",
+                relation: "Husband",
+                nominee_age: 47,
+                branch: "BR001",
+                introducer: "A20007"
+            },
+            {
+                id: "BMS000120",
+                name: "Dr. Girish Upadhyaya",
+                gender: "Male",
+                dob: "1974-01-11",
+                age: 52,
+                father: "Krishna Upadhyaya",
+                mobile: "9845001120",
+                email: "girish.upadhyaya.ayur@gmail.com",
+                address: "Ayur Kuteera, Saligrama-Kota Road, Kota Post",
+                city: "Udupi",
+                pincode: "576221",
+                pan: "TUVWX0123Y",
+                aadhaar: "234567890123",
+                voter: "KA/12/084/012345",
+                occupation: "Senior Ayurvedic Physician",
+                nominee: "Gayathri Upadhyaya",
+                relation: "Wife",
+                nominee_age: 48,
+                branch: "BR001",
+                introducer: "A20007"
+            },
+            {
+                id: "BMS000121",
+                name: "Rajeshwari Marakala",
+                gender: "Female",
+                dob: "1987-03-21",
+                age: 39,
+                father: "Karantha Marakala",
+                mobile: "9845001121",
+                email: "rajeshwari.marakala@gmail.com",
+                address: "Weavers Colony, Saligrama Post, Brahmavara",
+                city: "Brahmavara",
+                pincode: "576225",
+                pan: "UVWXY1234Z",
+                aadhaar: "345678901234",
+                voter: "KA/12/084/123456",
+                occupation: "Udupi Handloom GI Silk Weaver",
+                nominee: "Shekhar Marakala",
+                relation: "Husband",
+                nominee_age: 42,
+                branch: "BR001",
+                introducer: "A20007"
+            },
+            {
+                id: "BMS000122",
+                name: "Vinayaka Prabhu",
+                gender: "Male",
+                dob: "1981-10-15",
+                age: 44,
+                father: "Narayana Prabhu",
+                mobile: "9845001122",
+                email: "vinayaka.prabhu.cashew@gmail.com",
+                address: "Prabhu Industrial Estate, NH-66, Byndoor",
+                city: "Byndoor",
+                pincode: "576214",
+                pan: "VWXYZ2345A",
+                aadhaar: "456789012345",
+                voter: "KA/12/087/234567",
+                occupation: "Cashew Processing & Export Industrialist",
+                nominee: "Saritha Prabhu",
+                relation: "Wife",
+                nominee_age: 40,
+                branch: "BR003",
+                introducer: "A20009"
+            },
+            {
+                id: "BMS000123",
+                name: "Bharathi Somayaji",
+                gender: "Female",
+                dob: "1990-06-27",
+                age: 35,
+                father: "Keshava Somayaji",
+                mobile: "9845001123",
+                email: "bharathi.somayaji.ca@gmail.com",
+                address: "Ambalpady Temple Main Road, Ambalpady, Udupi",
+                city: "Udupi",
+                pincode: "576103",
+                pan: "WXYZA3456B",
+                aadhaar: "567890123456",
+                voter: "KA/12/084/345678",
+                occupation: "Chartered Accountant & Tax Consultant",
+                nominee: "Prasad Somayaji",
+                relation: "Husband",
+                nominee_age: 37,
+                branch: "BR001",
+                introducer: "A20002"
+            },
+            {
+                id: "BMS000124",
+                name: "Sudhakar Billava",
+                gender: "Male",
+                dob: "1985-05-19",
+                age: 40,
+                father: "Koraga Billava",
+                mobile: "9845001124",
+                email: "sudhakar.billava.resort@gmail.com",
+                address: "Beach View Heritage, Kaup Light House Road, Kaup",
+                city: "Kaup",
+                pincode: "574106",
+                pan: "XYZAB4567C",
+                aadhaar: "678901234567",
+                voter: "KA/12/085/456789",
+                occupation: "Beach Resort & Seafood Restaurant Owner",
+                nominee: "Usha S. Billava",
+                relation: "Wife",
+                nominee_age: 36,
+                branch: "BR001",
+                introducer: "A20008"
+            },
+            {
+                id: "BMS000125",
+                name: "Nagendra Holla",
+                gender: "Male",
+                dob: "1977-12-04",
+                age: 48,
+                father: "Mahalinga Holla",
+                mobile: "9845001125",
+                email: "nagendra.holla.barkur@gmail.com",
+                address: "Near Kalikamba Temple, Historic Barkur Post",
+                city: "Brahmavara",
+                pincode: "576210",
+                pan: "YZABC5678D",
+                aadhaar: "789012345678",
+                voter: "KA/12/084/567890",
+                occupation: "Organic Paddy Cultivator & Heritage Guide",
+                nominee: "Padmavathi Holla",
+                relation: "Wife",
+                nominee_age: 44,
+                branch: "BR001",
+                introducer: "A20007"
             }
         ];
 
-        for (const m of membersData) {
+        for (const m of rawMembers) {
             const memberDoc = {
                 member_id: m.id,
                 Member_id: m.id,
@@ -527,7 +932,7 @@ async function seedData() {
                 email: m.email,
                 address: m.address,
                 city: m.city,
-                state: m.state,
+                state: "Karnataka",
                 pincode: m.pincode,
                 pan_no: m.pan,
                 Pan_no: m.pan,
@@ -536,12 +941,11 @@ async function seedData() {
                 occupation: m.occupation,
                 nominee: m.nominee,
                 Nominee_name: m.nominee,
-                relation: m.nominee_relation,
-                Nominee_Relation: m.nominee_relation,
+                relation: m.relation,
+                Nominee_Relation: m.relation,
                 Nominee_age: m.nominee_age,
                 branch_id: m.branch,
                 introducer: m.introducer,
-                introducer_name: m.introducer_name,
                 password: DEMO_PASSWORD,
                 role: "USER",
                 status: "active",
@@ -558,7 +962,6 @@ async function seedData() {
                 { upsert: true, new: true }
             );
 
-            // Also upsert UserModel so they can log in via AuthController
             await UserModel.findOneAndUpdate(
                 { user_id: m.id },
                 {
@@ -576,386 +979,254 @@ async function seedData() {
                 { upsert: true, new: true }
             );
         }
-        console.log(`   ✨ ${membersData.length} Members created with login ID & password: "${DEMO_PASSWORD}".`);
+        console.log(`   ✨ ${rawMembers.length} Members & User Logins synced (password: "${DEMO_PASSWORD}").`);
 
         // ---------------------------------------------------------------------
-        // 5. SEED ACCOUNTS & LOANS (Savings, Current, FD, RD, Pigmy, Loans)
+        // 5. SEED 50+ ACCOUNTS & 25 LOANS
         // ---------------------------------------------------------------------
-        console.log("\n💳 [5/6] Seeding Bank Accounts & Loans...");
+        console.log("\n💳 [5/6] Seeding 50+ Accounts and 25 Loans...");
 
-        // Define Accounts & Loans for each member
-        const accountsToCreate = [
-            // --- Raghavendra Rao (BMS000101) ---
-            {
-                account_id: "ACC000101",
-                account_no: "SB000101",
-                member_id: "BMS000101",
-                account_type: "AGP001", // SB
-                branch_id: "BR001",
-                account_amount: 84500,
-                is_primary: true,
-                status: "active",
-                date_of_opening: new Date("2023-01-20"),
-                account_operation: "Single",
-                interest_rate: 4.0,
-                passbook_notes: "Regular salary account with auto-debit enabled"
-            },
-            {
-                account_id: "ACC000102",
-                account_no: "FD000101",
-                member_id: "BMS000101",
-                account_type: "AGP004", // FD
-                branch_id: "BR001",
-                account_amount: 200000,
-                is_primary: false,
-                status: "active",
-                date_of_opening: new Date("2023-06-10"),
-                duration: 24,
-                date_of_maturity: new Date("2025-06-10"),
-                interest_rate: 7.5,
-                account_operation: "Single",
-                passbook_notes: "2-Year Term Fixed Deposit"
-            },
-            {
-                account_id: "ACC000103",
-                account_no: "RD000101",
-                member_id: "BMS000101",
-                account_type: "AGP003", // RD
-                branch_id: "BR001",
-                account_amount: 30000,
-                is_primary: false,
-                status: "active",
-                date_of_opening: new Date("2024-01-05"),
-                duration: 12,
-                date_of_maturity: new Date("2025-01-05"),
-                interest_rate: 7.25,
-                rd_installment_amount: 5000,
-                rd_total_installments: 12,
-                rd_paid_installments: 6,
-                account_operation: "Single",
-                passbook_notes: "Monthly RD auto-debited from SB000101"
-            },
-            {
-                account_id: "LOAN000101",
-                account_no: "GL000101",
-                member_id: "BMS000101",
-                account_type: "AGP007", // Gold Loan
-                branch_id: "BR001",
-                account_amount: 150000,
-                is_primary: false,
-                status: "active",
-                date_of_opening: new Date("2024-04-10"),
-                duration: 12,
-                date_of_maturity: new Date("2025-04-10"),
-                interest_rate: 9.5,
-                loan_disbursed_to: "SB000101",
-                disbursed_at: new Date("2024-04-10"),
-                account_operation: "Single",
-                passbook_notes: "22K Gold ornaments pledged (approx 48 grams)"
-            },
+        const accountsList = [
+            // --- 25 Primary Savings (SB) Accounts (one per member) ---
+            { id: "ACC000101", no: "SB000101", mem: "BMS000101", type: "AGP001", br: "BR001", amt: 170500, isPri: true, op: "Single" },
+            { id: "ACC000102", no: "SB000102", mem: "BMS000102", type: "AGP001", br: "BR001", amt: 95270,  isPri: true, op: "Single" },
+            { id: "ACC000103", no: "SB000103", mem: "BMS000103", type: "AGP001", br: "BR001", amt: 284550, isPri: true, op: "Single" },
+            { id: "ACC000104", no: "SB000104", mem: "BMS000104", type: "AGP001", br: "BR002", amt: 65200,  isPri: true, op: "Single" },
+            { id: "ACC000105", no: "SB000105", mem: "BMS000105", type: "AGP001", br: "BR001", amt: 240000, isPri: true, op: "Single" },
+            { id: "ACC000106", no: "SB000106", mem: "BMS000106", type: "AGP001", br: "BR005", amt: 35800,  isPri: true, op: "Single" },
+            { id: "ACC000107", no: "SB000107", mem: "BMS000107", type: "AGP001", br: "BR003", amt: 95000,  isPri: true, op: "Single" },
+            { id: "ACC000108", no: "SB000108", mem: "BMS000108", type: "AGP001", br: "BR005", amt: 180000, isPri: true, op: "Single" },
+            { id: "ACC000109", no: "SB000109", mem: "BMS000109", type: "AGP001", br: "BR002", amt: 112000, isPri: true, op: "Single" },
+            { id: "ACC000110", no: "SB000110", mem: "BMS000110", type: "AGP001", br: "BR001", amt: 88500,  isPri: true, op: "Single" },
+            { id: "ACC000111", no: "SB000111", mem: "BMS000111", type: "AGP001", br: "BR001", amt: 42000,  isPri: true, op: "Single" },
+            { id: "ACC000112", no: "SB000112", mem: "BMS000112", type: "AGP001", br: "BR003", amt: 135000, isPri: true, op: "Single" },
+            { id: "ACC000113", no: "SB000113", mem: "BMS000113", type: "AGP001", br: "BR003", amt: 78000,  isPri: true, op: "Single" },
+            { id: "ACC000114", no: "SB000114", mem: "BMS000114", type: "AGP001", br: "BR005", amt: 54000,  isPri: true, op: "Single" },
+            { id: "ACC000115", no: "SB000115", mem: "BMS000115", type: "AGP001", br: "BR005", amt: 165000, isPri: true, op: "Single" },
+            { id: "ACC000116", no: "SB000116", mem: "BMS000116", type: "AGP001", br: "BR004", amt: 310000, isPri: true, op: "Single" },
+            { id: "ACC000117", no: "SB000117", mem: "BMS000117", type: "AGP001", br: "BR004", amt: 62000,  isPri: true, op: "Single" },
+            { id: "ACC000118", no: "SB000118", mem: "BMS000118", type: "AGP001", br: "BR004", amt: 420000, isPri: true, op: "Single" },
+            { id: "ACC000119", no: "SB000119", mem: "BMS000119", type: "AGP001", br: "BR001", amt: 98000,  isPri: true, op: "Single" },
+            { id: "ACC000120", no: "SB000120", mem: "BMS000120", type: "AGP001", br: "BR001", amt: 145000, isPri: true, op: "Single" },
+            { id: "ACC000121", no: "SB000121", mem: "BMS000121", type: "AGP001", br: "BR001", amt: 31500,  isPri: true, op: "Single" },
+            { id: "ACC000122", no: "SB000122", mem: "BMS000122", type: "AGP001", br: "BR003", amt: 520000, isPri: true, op: "Single" },
+            { id: "ACC000123", no: "SB000123", mem: "BMS000123", type: "AGP001", br: "BR001", amt: 185000, isPri: true, op: "Single" },
+            { id: "ACC000124", no: "SB000124", mem: "BMS000124", type: "AGP001", br: "BR001", amt: 290000, isPri: true, op: "Single" },
+            { id: "ACC000125", no: "SB000125", mem: "BMS000125", type: "AGP001", br: "BR001", amt: 73000,  isPri: true, op: "Single" },
 
-            // --- Deepa Nayak (BMS000102) ---
-            {
-                account_id: "ACC000104",
-                account_no: "SB000102",
-                member_id: "BMS000102",
-                account_type: "AGP001", // SB
-                branch_id: "BR001",
-                account_amount: 42300,
-                is_primary: true,
-                status: "active",
-                date_of_opening: new Date("2023-02-15"),
-                account_operation: "Single",
-                interest_rate: 4.0,
-                passbook_notes: "Primary Savings Account"
-            },
-            {
-                account_id: "ACC000105",
-                account_no: "RD000102",
-                member_id: "BMS000102",
-                account_type: "AGP003", // RD
-                branch_id: "BR001",
-                account_amount: 24000,
-                is_primary: false,
-                status: "active",
-                date_of_opening: new Date("2023-08-01"),
-                duration: 24,
-                date_of_maturity: new Date("2025-08-01"),
-                interest_rate: 7.25,
-                rd_installment_amount: 3000,
-                rd_total_installments: 24,
-                rd_paid_installments: 8,
-                account_operation: "Single"
-            },
-            {
-                account_id: "LOAN000102",
-                account_no: "VL000102",
-                member_id: "BMS000102",
-                account_type: "AGP008", // Vehicle Loan
-                branch_id: "BR001",
-                account_amount: 250000,
-                is_primary: false,
-                status: "active",
-                date_of_opening: new Date("2023-11-20"),
-                duration: 36,
-                date_of_maturity: new Date("2026-11-20"),
-                interest_rate: 9.0,
-                loan_disbursed_to: "SB000102",
-                disbursed_at: new Date("2023-11-20"),
-                account_operation: "Single",
-                passbook_notes: "Two-Wheeler EV Loan"
-            },
+            // --- Current Accounts (CA) ---
+            { id: "ACC000201", no: "CA000104", mem: "BMS000104", type: "AGP002", br: "BR002", amt: 150000, isPri: false, op: "Proprietorship" },
+            { id: "ACC000202", no: "CA000105", mem: "BMS000105", type: "AGP002", br: "BR001", amt: 485000, isPri: false, op: "Business" },
+            { id: "ACC000203", no: "CA000107", mem: "BMS000107", type: "AGP002", br: "BR003", amt: 210000, isPri: false, op: "Firm" },
+            { id: "ACC000204", no: "CA000116", mem: "BMS000116", type: "AGP002", br: "BR004", amt: 620000, isPri: false, op: "Business" },
+            { id: "ACC000205", no: "CA000122", mem: "BMS000122", type: "AGP002", br: "BR003", amt: 950000, isPri: false, op: "Industrial" },
 
-            // --- Ganesh Prasad Shetty (BMS000103) ---
-            {
-                account_id: "ACC000106",
-                account_no: "SB000103",
-                member_id: "BMS000103",
-                account_type: "AGP001", // SB
-                branch_id: "BR001",
-                account_amount: 115000,
-                is_primary: true,
-                status: "active",
-                date_of_opening: new Date("2022-11-10"),
-                account_operation: "Single",
-                interest_rate: 4.0
-            },
-            {
-                account_id: "ACC000107",
-                account_no: "FD000102",
-                member_id: "BMS000103",
-                account_type: "AGP004", // FD
-                branch_id: "BR001",
-                account_amount: 500000,
-                is_primary: false,
-                status: "active",
-                date_of_opening: new Date("2023-03-15"),
-                duration: 36,
-                date_of_maturity: new Date("2026-03-15"),
-                interest_rate: 7.75,
-                account_operation: "Single"
-            },
-            {
-                account_id: "LOAN000103",
-                account_no: "AL000103",
-                member_id: "BMS000103",
-                account_type: "AGP014", // Agriculture Loan
-                branch_id: "BR001",
-                account_amount: 300000,
-                is_primary: false,
-                status: "active",
-                date_of_opening: new Date("2023-05-10"),
-                duration: 24,
-                date_of_maturity: new Date("2025-05-10"),
-                interest_rate: 7.0, // Subsidized Agri rate
-                loan_disbursed_to: "SB000103",
-                disbursed_at: new Date("2023-05-10"),
-                account_operation: "Single",
-                passbook_notes: "Kisan Dairy & Arecanut development facility"
-            },
+            // --- Fixed Deposit (FD) Accounts ---
+            { id: "ACC000301", no: "FD000101", mem: "BMS000101", type: "AGP004", br: "BR001", amt: 200000, isPri: false, duration: 24, rate: 7.5 },
+            { id: "ACC000302", no: "FD000102", mem: "BMS000103", type: "AGP004", br: "BR001", amt: 500000, isPri: false, duration: 36, rate: 7.75 },
+            { id: "ACC000303", no: "FD000103", mem: "BMS000106", type: "AGP004", br: "BR005", amt: 100000, isPri: false, duration: 12, rate: 8.25 },
+            { id: "ACC000304", no: "FD000104", mem: "BMS000109", type: "AGP004", br: "BR002", amt: 300000, isPri: false, duration: 24, rate: 7.5 },
+            { id: "ACC000305", no: "FD000105", mem: "BMS000120", type: "AGP004", br: "BR001", amt: 250000, isPri: false, duration: 36, rate: 7.75 },
 
-            // --- Ananya Adiga (BMS000104) ---
-            {
-                account_id: "ACC000108",
-                account_no: "SB000104",
-                member_id: "BMS000104",
-                account_type: "AGP001", // SB
-                branch_id: "BR002",
-                account_amount: 65200,
-                is_primary: true,
-                status: "active",
-                date_of_opening: new Date("2023-04-12"),
-                account_operation: "Single",
-                interest_rate: 4.0
-            },
-            {
-                account_id: "ACC000109",
-                account_no: "CA000104",
-                member_id: "BMS000104",
-                account_type: "AGP002", // CA
-                branch_id: "BR002",
-                account_amount: 150000,
-                is_primary: false,
-                status: "active",
-                date_of_opening: new Date("2023-05-01"),
-                account_operation: "Proprietorship",
-                passbook_notes: "Ananya Couture Current Account"
-            },
-            {
-                account_id: "ACC000110",
-                account_no: "PIG000104",
-                member_id: "BMS000104",
-                account_type: "AGP005", // PIGMY
-                branch_id: "BR002",
-                account_amount: 28500,
-                is_primary: false,
-                status: "active",
-                date_of_opening: new Date("2024-01-15"),
-                duration: 12,
-                assigned_to: "A20003", // Ramesh Acharya
-                account_operation: "Single",
-                passbook_notes: "Daily Pigmy collection ₹300/day"
-            },
+            // --- Recurring Deposit (RD) Accounts ---
+            { id: "ACC000401", no: "RD000101", mem: "BMS000101", type: "AGP003", br: "BR001", amt: 30000, isPri: false, duration: 12, rate: 7.25, rdInst: 5000, rdTotal: 12, rdPaid: 6 },
+            { id: "ACC000402", no: "RD000102", mem: "BMS000102", type: "AGP003", br: "BR001", amt: 24000, isPri: false, duration: 24, rate: 7.25, rdInst: 3000, rdTotal: 24, rdPaid: 8 },
+            { id: "ACC000403", no: "RD000103", mem: "BMS000113", type: "AGP003", br: "BR003", amt: 20000, isPri: false, duration: 12, rate: 7.0,  rdInst: 4000, rdTotal: 12, rdPaid: 5 },
 
-            // --- Praveen Kumar Poojary (BMS000105) ---
-            {
-                account_id: "ACC000111",
-                account_no: "SB000105",
-                member_id: "BMS000105",
-                account_type: "AGP001", // SB
-                branch_id: "BR001",
-                account_amount: 240000,
-                is_primary: true,
-                status: "active",
-                date_of_opening: new Date("2022-08-20"),
-                account_operation: "Single",
-                interest_rate: 4.0
-            },
-            {
-                account_id: "ACC000112",
-                account_no: "CA000105",
-                member_id: "BMS000105",
-                account_type: "AGP002", // CA
-                branch_id: "BR001",
-                account_amount: 485000,
-                is_primary: false,
-                status: "active",
-                date_of_opening: new Date("2022-09-01"),
-                account_operation: "Business",
-                passbook_notes: "Malpe Coastal Marine Exports"
-            },
-            {
-                account_id: "LOAN000104",
-                account_no: "PL000105",
-                member_id: "BMS000105",
-                account_type: "AGP013", // Personal Loan
-                branch_id: "BR001",
-                account_amount: 100000,
-                is_primary: false,
-                status: "active",
-                date_of_opening: new Date("2024-02-14"),
-                duration: 12,
-                date_of_maturity: new Date("2025-02-14"),
-                interest_rate: 12.0,
-                loan_disbursed_to: "SB000105",
-                disbursed_at: new Date("2024-02-14"),
-                account_operation: "Single"
-            },
+            // --- Pigmy Daily Collection Accounts ---
+            { id: "ACC000501", no: "PIG000104", mem: "BMS000104", type: "AGP005", br: "BR002", amt: 28500, isPri: false, assigned_to: "A20003", notes: "₹300/day by Agent Ramesh" },
+            { id: "ACC000502", no: "PIG000111", mem: "BMS000111", type: "AGP005", br: "BR001", amt: 18200, isPri: false, assigned_to: "A20008", notes: "₹200/day by Agent Chethan" },
+            { id: "ACC000503", no: "PIG000121", mem: "BMS000121", type: "AGP005", br: "BR001", amt: 15400, isPri: false, assigned_to: "A20007", notes: "₹150/day by Agent Divya" },
 
-            // --- Geetha Kudva (BMS000106 - Senior Citizen) ---
+            // =================================================================
+            // 25 LOANS ACROSS ALL 10 LOAN CATEGORIES (AGP007 to AGP017)
+            // =================================================================
             {
-                account_id: "ACC000113",
-                account_no: "SB000106",
-                member_id: "BMS000106",
-                account_type: "AGP001", // SB
-                branch_id: "BR005",
-                account_amount: 35800,
-                is_primary: true,
-                status: "active",
-                date_of_opening: new Date("2023-03-10"),
-                account_operation: "Single",
-                interest_rate: 4.5 // Senior citizen SB bonus
+                id: "LOAN000101", no: "GL000101", mem: "BMS000101", type: "AGP007", br: "BR001",
+                amt: 150000, rate: 9.5, duration: 12, disbTo: "SB000101",
+                notes: "22K Gold Loan (48 grams pledged jewellery)"
             },
             {
-                account_id: "ACC000114",
-                account_no: "FD000103",
-                member_id: "BMS000106",
-                account_type: "AGP004", // FD
-                branch_id: "BR005",
-                account_amount: 100000,
-                is_primary: false,
-                status: "active",
-                date_of_opening: new Date("2023-04-01"),
-                duration: 12,
-                date_of_maturity: new Date("2024-04-01"),
-                interest_rate: 8.25, // Senior citizen FD rate
-                account_operation: "Single"
-            },
-
-            // --- Dinesh Kamath (BMS000107) ---
-            {
-                account_id: "ACC000115",
-                account_no: "SB000107",
-                member_id: "BMS000107",
-                account_type: "AGP001", // SB
-                branch_id: "BR003",
-                account_amount: 95000,
-                is_primary: true,
-                status: "active",
-                date_of_opening: new Date("2022-10-05"),
-                account_operation: "Single"
+                id: "LOAN000102", no: "VL000102", mem: "BMS000102", type: "AGP008", br: "BR001",
+                amt: 250000, rate: 9.0, duration: 36, disbTo: "SB000102",
+                notes: "Two-Wheeler Electric Vehicle Loan"
             },
             {
-                account_id: "ACC000116",
-                account_no: "CA000107",
-                member_id: "BMS000107",
-                account_type: "AGP002", // CA
-                branch_id: "BR003",
-                account_amount: 210000,
-                is_primary: false,
-                status: "active",
-                date_of_opening: new Date("2022-11-01"),
-                account_operation: "Firm"
+                id: "LOAN000103", no: "AL000103", mem: "BMS000103", type: "AGP014", br: "BR001",
+                amt: 300000, rate: 7.0, duration: 24, disbTo: "SB000103",
+                notes: "Subsidized Kisan Dairy & Arecanut development facility"
             },
             {
-                account_id: "LOAN000105",
-                account_no: "BL000107",
-                member_id: "BMS000107",
-                account_type: "AGP010", // Business Loan
-                branch_id: "BR003",
-                account_amount: 500000,
-                is_primary: false,
-                status: "active",
-                date_of_opening: new Date("2023-07-20"),
-                duration: 36,
-                date_of_maturity: new Date("2026-07-20"),
-                interest_rate: 11.5,
-                loan_disbursed_to: "SB000107",
-                disbursed_at: new Date("2023-07-20"),
-                account_operation: "Business",
-                passbook_notes: "Commercial working capital expansion"
+                id: "LOAN000104", no: "BL000104", mem: "BMS000104", type: "AGP010", br: "BR002",
+                amt: 400000, rate: 11.5, duration: 36, disbTo: "SB000104",
+                notes: "Boutique equipment and designer inventory working capital"
             },
-
-            // --- Ashwath Narayana Bhat (BMS000108) ---
             {
-                account_id: "ACC000117",
-                account_no: "SB000108",
-                member_id: "BMS000108",
-                account_type: "AGP001", // SB
-                branch_id: "BR005",
-                account_amount: 180000,
-                is_primary: true,
-                status: "active",
-                date_of_opening: new Date("2021-05-18"),
-                account_operation: "Single"
+                id: "LOAN000105", no: "PL000105", mem: "BMS000105", type: "AGP013", br: "BR001",
+                amt: 100000, rate: 12.0, duration: 12, disbTo: "SB000105",
+                notes: "Personal loan for boat maintenance"
+            },
+            {
+                id: "LOAN000106", no: "ML000106", mem: "BMS000107", type: "AGP011", br: "BR003",
+                amt: 1200000, rate: 10.0, duration: 60, disbTo: "SB000107",
+                notes: "Mortgage loan on commercial property in Kundapura"
+            },
+            {
+                id: "LOAN000107", no: "AL000107", mem: "BMS000108", type: "AGP014", br: "BR005",
+                amt: 450000, rate: 7.25, duration: 36, disbTo: "SB000108",
+                notes: "Rubber Plantation & Irrigation Agriculture Facility"
+            },
+            {
+                id: "LOAN000108", no: "EL000108", mem: "BMS000109", type: "AGP009", br: "BR002",
+                amt: 500000, rate: 8.5, duration: 48, disbTo: "SB000109",
+                notes: "Higher Education Loan for Postdoctoral Research"
+            },
+            {
+                id: "LOAN000109", no: "GL000109", mem: "BMS000110", type: "AGP007", br: "BR001",
+                amt: 220000, rate: 9.5, duration: 12, disbTo: "SB000110",
+                notes: "Gold loan on hallmarked 65g ornaments"
+            },
+            {
+                id: "LOAN000110", no: "PGL000110", mem: "BMS000111", type: "AGP016", br: "BR001",
+                amt: 50000, rate: 10.0, duration: 12, disbTo: "SB000111",
+                notes: "Micro Pigmy Loan for SHG Loom Upgrades"
+            },
+            {
+                id: "LOAN000111", no: "VL000111", mem: "BMS000112", type: "AGP008", br: "BR003",
+                amt: 350000, rate: 9.25, duration: 36, disbTo: "SB000112",
+                notes: "Utility Vehicle Loan for fish distribution"
+            },
+            {
+                id: "LOAN000112", no: "PL000112", mem: "BMS000113", type: "AGP013", br: "BR003",
+                amt: 150000, rate: 11.5, duration: 18, disbTo: "SB000113",
+                notes: "Teacher Personal Loan for home library extension"
+            },
+            {
+                id: "LOAN000113", no: "BL000113", mem: "BMS000114", type: "AGP010", br: "BR005",
+                amt: 300000, rate: 11.0, duration: 24, disbTo: "SB000114",
+                notes: "Music store expansion and inventory finance"
+            },
+            {
+                id: "LOAN000114", no: "ML000114", mem: "BMS000115", type: "AGP011", br: "BR005",
+                amt: 800000, rate: 10.25, duration: 48, disbTo: "SB000115",
+                notes: "Mortgage loan on ancestral farmhouse homestay"
+            },
+            {
+                id: "LOAN000115", no: "OD000115", mem: "BMS000116", type: "AGP012", br: "BR004",
+                amt: 500000, rate: 12.0, duration: 12, disbTo: "SB000116",
+                notes: "Commercial Business Overdraft facility against stock"
+            },
+            {
+                id: "LOAN000116", no: "GL000116", mem: "BMS000117", type: "AGP007", br: "BR004",
+                amt: 180000, rate: 9.5, duration: 12, disbTo: "SB000117",
+                notes: "Emergency Gold loan against 52g ornaments"
+            },
+            {
+                id: "LOAN000117", no: "VL000117", mem: "BMS000118", type: "AGP008", br: "BR004",
+                amt: 850000, rate: 9.5, duration: 48, disbTo: "SB000118",
+                notes: "Commercial Heavy Transport Truck vehicle loan"
+            },
+            {
+                id: "LOAN000118", no: "AL000118", mem: "BMS000119", type: "AGP014", br: "BR001",
+                amt: 250000, rate: 7.0, duration: 24, disbTo: "SB000119",
+                notes: "Agri credit for micro-irrigation and solar pump"
+            },
+            {
+                id: "LOAN000119", no: "BL000119", mem: "BMS000120", type: "AGP010", br: "BR001",
+                amt: 200000, rate: 11.0, duration: 24, disbTo: "SB000120",
+                notes: "Ayurvedic clinic herbal processing equipment loan"
+            },
+            {
+                id: "LOAN000120", no: "PGLD000120", mem: "BMS000121", type: "AGP017", br: "BR001",
+                amt: 75000, rate: 9.75, duration: 12, disbTo: "SB000121",
+                notes: "Pigmi Gold Loan for weaver handloom raw silk purchase"
+            },
+            {
+                id: "LOAN000121", no: "BL000121", mem: "BMS000122", type: "AGP010", br: "BR003",
+                amt: 1000000, rate: 11.0, duration: 36, disbTo: "SB000122",
+                notes: "Cashew processing industrial expansion loan"
+            },
+            {
+                id: "LOAN000122", no: "PL000122", mem: "BMS000123", type: "AGP013", br: "BR001",
+                amt: 200000, rate: 11.5, duration: 12, disbTo: "SB000123",
+                notes: "Professional personal loan for CA office digitization"
+            },
+            {
+                id: "LOAN000123", no: "BL000123", mem: "BMS000124", type: "AGP010", br: "BR001",
+                amt: 600000, rate: 11.5, duration: 36, disbTo: "SB000124",
+                notes: "Kaup resort cottage renovation business credit"
+            },
+            {
+                id: "LOAN000124", no: "AL000124", mem: "BMS000125", type: "AGP014", br: "BR001",
+                amt: 180000, rate: 7.0, duration: 24, disbTo: "SB000125",
+                notes: "Organic paddy crop cultivation agricultural loan"
+            },
+            {
+                id: "LOAN000125", no: "GL000125", mem: "BMS000106", type: "AGP007", br: "BR005",
+                amt: 120000, rate: 9.5, duration: 12, disbTo: "SB000106",
+                notes: "Senior citizen gold loan with concession rate"
             }
         ];
 
-        for (const acc of accountsToCreate) {
+        let createdAccCount = 0;
+        let createdLoanCount = 0;
+
+        for (const item of accountsList) {
+            const isLoan = item.no.startsWith('GL') || item.no.startsWith('VL') ||
+                           item.no.startsWith('AL') || item.no.startsWith('BL') ||
+                           item.no.startsWith('PL') || item.no.startsWith('ML') ||
+                           item.no.startsWith('EL') || item.no.startsWith('OD') ||
+                           item.no.startsWith('PGL') || item.no.startsWith('PGLD');
+
+            const accDoc = {
+                account_id: item.id,
+                account_no: item.no,
+                member_id: item.mem,
+                account_type: item.type,
+                branch_id: item.br,
+                account_amount: item.amt,
+                is_primary: Boolean(item.isPri),
+                status: "active",
+                date_of_opening: new Date("2023-01-20"),
+                account_operation: item.op || "Single",
+                interest_rate: item.rate || (isLoan ? 10.5 : 4.0),
+                duration: item.duration || 12,
+                date_of_maturity: item.duration ? new Date("2025-06-30") : null,
+                loan_disbursed_to: item.disbTo || null,
+                disbursed_at: item.disbTo ? new Date("2024-01-15") : null,
+                passbook_notes: item.notes || (isLoan ? "Active sanctioned loan" : "Operating bank account"),
+                rd_installment_amount: item.rdInst || null,
+                rd_total_installments: item.rdTotal || null,
+                rd_paid_installments: item.rdPaid || 0,
+                assigned_to: item.assigned_to || null,
+                last_transaction_date: new Date()
+            };
+
             await AccountsModel.findOneAndUpdate(
-                { account_no: acc.account_no },
-                { $set: acc },
+                { account_no: item.no },
+                { $set: accDoc },
                 { upsert: true, new: true }
             );
 
-            // If marked primary, update member's primary_account_no
-            if (acc.is_primary) {
+            if (item.isPri) {
                 await MemberModel.findOneAndUpdate(
-                    { $or: [{ member_id: acc.member_id }, { Member_id: acc.member_id }] },
-                    { $set: { primary_account_no: acc.account_no } }
+                    { $or: [{ member_id: item.mem }, { Member_id: item.mem }] },
+                    { $set: { primary_account_no: item.no } }
                 );
             }
+
+            if (isLoan) createdLoanCount++;
+            else createdAccCount++;
         }
-        console.log(`   ✨ ${accountsToCreate.length} Accounts & Loans created.`);
+        console.log(`   ✨ ${createdAccCount} Standard Accounts and ${createdLoanCount} Loans synced successfully.`);
 
         // ---------------------------------------------------------------------
-        // 6. SEED REALISTIC PASSBOOK & BANK TRANSACTIONS
+        // 6. SEED PASSBOOK & BANK TRANSACTIONS
         // ---------------------------------------------------------------------
         console.log("\n📖 [6/6] Generating Rich Passbook Transactions with Running Balances...");
 
-        // Clear existing demo transactions for these demo accounts to ensure clean calculation
-        const demoAccountNos = accountsToCreate.map(a => a.account_no);
-        await TransactionModel.deleteMany({ account_number: { $in: demoAccountNos } });
+        const allAccNos = accountsList.map(a => a.no);
+        await TransactionModel.deleteMany({ account_number: { $in: allAccNos } });
 
         // Helper to insert an ordered ledger of transactions for an account
         const generateAccountLedger = async ({ memberId, memberName, mobile, accountNo, accountType, initialBalance, items }) => {
@@ -994,585 +1265,282 @@ async function seedData() {
                 await TransactionModel.insertMany(records);
             }
 
-            // Sync account_amount with final balance
             await AccountsModel.findOneAndUpdate(
                 { account_no: accountNo },
-                { $set: { account_amount: Math.round(runningBalance * 100) / 100, last_transaction_date: items[items.length - 1]?.date || new Date() } }
+                {
+                    $set: {
+                        account_amount: Math.round(runningBalance * 100) / 100,
+                        last_transaction_date: items[items.length - 1]?.date || new Date()
+                    }
+                }
             );
 
             return records.length;
         };
 
-        // --- Ledger 1: Raghavendra Rao - Primary SB Account (SB000101) ---
-        const sb000101Items = [
-            {
-                date: new Date("2024-01-01T10:30:00Z"),
-                type: "Account Opening",
-                desc: "INITIAL ACCOUNT OPENING DEPOSIT - CASH",
-                credit: 10000,
-                debit: 0,
-                ref: "CSH/BR001/0142",
-                collected_by: "Udupi Cash Counter"
-            },
-            {
-                date: new Date("2024-01-05T14:15:00Z"),
-                type: "Salary Credit",
-                desc: "SALARY CREDIT - ROBOSOFT TECHNOLOGIES UDUPI",
-                credit: 95000,
-                debit: 0,
-                ref: "NEFT/ROBO/20240105",
-                collected_by: "System"
-            },
-            {
-                date: new Date("2024-01-08T18:40:00Z"),
-                type: "UPI Transfer",
-                desc: "UPI/GPAY TO SRI KRISHNA MATHA SEVA FUND",
-                credit: 0,
-                debit: 5000,
-                ref: "UPI/400819283719"
-            },
-            {
-                date: new Date("2024-01-15T11:20:00Z"),
-                type: "Utility Bill",
-                desc: "MESCOM ELECTRICITY BILL PAYMENT - UDUPI SUB-DIV",
-                credit: 0,
-                debit: 2450,
-                ref: "BBPS/MESCOM/98124"
-            },
-            {
-                date: new Date("2024-01-20T16:05:00Z"),
-                type: "ATM Cash Withdrawal",
-                desc: "ATM CASH WITHDRAWAL - KALSANKA UDUPI ATM",
-                credit: 0,
-                debit: 10000,
-                ref: "ATM/UDU/8812"
-            },
-            {
-                date: new Date("2024-02-05T10:00:00Z"),
-                type: "Salary Credit",
-                desc: "SALARY CREDIT - ROBOSOFT TECHNOLOGIES UDUPI",
-                credit: 95000,
-                debit: 0,
-                ref: "NEFT/ROBO/20240205"
-            },
-            {
-                date: new Date("2024-02-12T13:30:00Z"),
-                type: "UPI Transfer",
-                desc: "UPI/DIANA RESTAURANT UDUPI - FOOD BILL",
-                credit: 0,
-                debit: 1850,
-                ref: "UPI/404312891234"
-            },
-            {
-                date: new Date("2024-02-28T17:15:00Z"),
-                type: "Transfer",
-                desc: "TRANSFER TO MONTHLY RD ACCOUNT RD000101",
-                credit: 0,
-                debit: 5000,
-                ref: "INT/TRF/RD000101"
-            },
-            {
-                date: new Date("2024-03-31T20:00:00Z"),
-                type: "Interest Credit",
-                desc: "QUARTERLY SAVINGS BANK INTEREST CREDIT Q4 23-24",
-                credit: 1250,
-                debit: 0,
-                ref: "SYS/SB/INT/Q4"
-            },
-            {
-                date: new Date("2024-04-10T11:30:00Z"),
-                type: "Loan Disbursement",
-                desc: "LOAN DISBURSEMENT CREDITED FROM GL000101 (Gold Loan)",
-                credit: 150000,
-                debit: 0,
-                ref: "LN/DISB/GL000101",
-                collected_by: "Branch Loan Officer"
-            },
-            {
-                date: new Date("2024-04-15T15:00:00Z"),
-                type: "RTGS Transfer",
-                desc: "RTGS OUTWARD - HOME RENOVATION CONTRACTOR UDUPI",
-                credit: 0,
-                debit: 140000,
-                ref: "RTGS/BMS/20240415"
-            },
-            {
-                date: new Date("2024-05-10T12:00:00Z"),
-                type: "Loan Repayment",
-                desc: "MONTHLY EMI REPAYMENT DEBITED - GOLD LOAN GL000101",
-                credit: 0,
-                debit: 13150,
-                ref: "EMI/GL000101/M1"
-            },
-            {
-                date: new Date("2024-06-10T12:00:00Z"),
-                type: "Loan Repayment",
-                desc: "MONTHLY EMI REPAYMENT DEBITED - GOLD LOAN GL000101",
-                credit: 0,
-                debit: 13150,
-                ref: "EMI/GL000101/M2"
-            },
-            {
-                date: new Date("2024-06-30T20:00:00Z"),
-                type: "Interest Credit",
-                desc: "QUARTERLY SAVINGS BANK INTEREST CREDIT Q1 24-25",
-                credit: 1450,
-                debit: 0,
-                ref: "SYS/SB/INT/Q1"
-            },
-            {
-                date: new Date("2024-07-10T12:00:00Z"),
-                type: "Loan Repayment",
-                desc: "MONTHLY EMI REPAYMENT DEBITED - GOLD LOAN GL000101",
-                credit: 0,
-                debit: 13150,
-                ref: "EMI/GL000101/M3"
-            },
-            {
-                date: new Date("2024-08-05T10:15:00Z"),
-                type: "Cash Deposit",
-                desc: "CASH DEPOSIT AT UDUPI MAIN BRANCH COUNTER",
-                credit: 25000,
-                debit: 0,
-                ref: "CSH/BR001/0891",
-                collected_by: "Suresh Poojary"
-            },
-            {
-                date: new Date("2024-09-01T14:20:00Z"),
-                type: "UPI Transfer",
-                desc: "UPI/BIG MISHRA PEDHA UDUPI - FESTIVAL SWEETS",
-                credit: 0,
-                debit: 3450,
-                ref: "UPI/424519082341"
-            }
-        ];
-
-        const count1 = await generateAccountLedger({
+        // --- 1. Ledger for Raghavendra Rao (SB000101) --- 17 transactions
+        await generateAccountLedger({
             memberId: "BMS000101",
             memberName: "Raghavendra Rao",
             mobile: "9845001101",
             accountNo: "SB000101",
             accountType: "AGP001",
             initialBalance: 0,
-            items: sb000101Items
+            items: [
+                { date: new Date("2024-01-01T10:30:00Z"), type: "Account Opening", desc: "INITIAL ACCOUNT OPENING DEPOSIT - CASH", credit: 10000, debit: 0, ref: "CSH/BR001/0142" },
+                { date: new Date("2024-01-05T14:15:00Z"), type: "Salary Credit", desc: "SALARY CREDIT - ROBOSOFT TECHNOLOGIES UDUPI", credit: 95000, debit: 0, ref: "NEFT/ROBO/20240105" },
+                { date: new Date("2024-01-08T18:40:00Z"), type: "UPI Transfer", desc: "UPI/GPAY TO SRI KRISHNA MATHA SEVA FUND", credit: 0, debit: 5000, ref: "UPI/400819283719" },
+                { date: new Date("2024-01-15T11:20:00Z"), type: "Utility Bill", desc: "MESCOM ELECTRICITY BILL PAYMENT - UDUPI SUB-DIV", credit: 0, debit: 2450, ref: "BBPS/MESCOM/98124" },
+                { date: new Date("2024-01-20T16:05:00Z"), type: "ATM Cash Withdrawal", desc: "ATM CASH WITHDRAWAL - KALSANKA UDUPI ATM", credit: 0, debit: 10000, ref: "ATM/UDU/8812" },
+                { date: new Date("2024-02-05T10:00:00Z"), type: "Salary Credit", desc: "SALARY CREDIT - ROBOSOFT TECHNOLOGIES UDUPI", credit: 95000, debit: 0, ref: "NEFT/ROBO/20240205" },
+                { date: new Date("2024-02-12T13:30:00Z"), type: "UPI Transfer", desc: "UPI/DIANA RESTAURANT UDUPI - FOOD BILL", credit: 0, debit: 1850, ref: "UPI/404312891234" },
+                { date: new Date("2024-02-28T17:15:00Z"), type: "Transfer", desc: "TRANSFER TO MONTHLY RD ACCOUNT RD000101", credit: 0, debit: 5000, ref: "INT/TRF/RD000101" },
+                { date: new Date("2024-03-31T20:00:00Z"), type: "Interest Credit", desc: "QUARTERLY SAVINGS BANK INTEREST CREDIT Q4 23-24", credit: 1250, debit: 0, ref: "SYS/SB/INT/Q4" },
+                { date: new Date("2024-04-10T11:30:00Z"), type: "Loan Disbursement", desc: "LOAN DISBURSEMENT CREDITED FROM GL000101 (Gold Loan)", credit: 150000, debit: 0, ref: "LN/DISB/GL000101" },
+                { date: new Date("2024-04-15T15:00:00Z"), type: "RTGS Transfer", desc: "RTGS OUTWARD - HOME RENOVATION CONTRACTOR UDUPI", credit: 0, debit: 140000, ref: "RTGS/BMS/20240415" },
+                { date: new Date("2024-05-10T12:00:00Z"), type: "Loan Repayment", desc: "MONTHLY EMI REPAYMENT DEBITED - GOLD LOAN GL000101", credit: 0, debit: 13150, ref: "EMI/GL000101/M1" },
+                { date: new Date("2024-06-10T12:00:00Z"), type: "Loan Repayment", desc: "MONTHLY EMI REPAYMENT DEBITED - GOLD LOAN GL000101", credit: 0, debit: 13150, ref: "EMI/GL000101/M2" },
+                { date: new Date("2024-06-30T20:00:00Z"), type: "Interest Credit", desc: "QUARTERLY SAVINGS BANK INTEREST CREDIT Q1 24-25", credit: 1450, debit: 0, ref: "SYS/SB/INT/Q1" },
+                { date: new Date("2024-07-10T12:00:00Z"), type: "Loan Repayment", desc: "MONTHLY EMI REPAYMENT DEBITED - GOLD LOAN GL000101", credit: 0, debit: 13150, ref: "EMI/GL000101/M3" },
+                { date: new Date("2024-08-05T10:15:00Z"), type: "Cash Deposit", desc: "CASH DEPOSIT AT UDUPI MAIN BRANCH COUNTER", credit: 25000, debit: 0, ref: "CSH/BR001/0891" },
+                { date: new Date("2024-09-01T14:20:00Z"), type: "UPI Transfer", desc: "UPI/BIG MISHRA PEDHA UDUPI - FESTIVAL SWEETS", credit: 0, debit: 3450, ref: "UPI/424519082341" }
+            ]
         });
-        console.log(`   ✨ Generated ${count1} transactions for Raghavendra Rao (SB000101)`);
 
-        // --- Ledger 2: Gold Loan Account for Raghavendra Rao (GL000101) ---
-        const gl000101Items = [
-            {
-                date: new Date("2024-04-10T11:30:00Z"),
-                type: "Loan Sanction",
-                desc: "GOLD LOAN SANCTIONED - PLEDGE 48G 22KT ORNAMENTS",
-                credit: 150000,
-                debit: 0,
-                ref: "GL/SANC/00101"
-            },
-            {
-                date: new Date("2024-05-10T12:00:00Z"),
-                type: "Loan Repayment",
-                desc: "MONTHLY EMI REPAYMENT - INSTALMENT 1/12 RECEIVED",
-                credit: 13150,
-                debit: 0,
-                ref: "EMI/GL000101/M1"
-            },
-            {
-                date: new Date("2024-06-10T12:00:00Z"),
-                type: "Loan Repayment",
-                desc: "MONTHLY EMI REPAYMENT - INSTALMENT 2/12 RECEIVED",
-                credit: 13150,
-                debit: 0,
-                ref: "EMI/GL000101/M2"
-            },
-            {
-                date: new Date("2024-07-10T12:00:00Z"),
-                type: "Loan Repayment",
-                desc: "MONTHLY EMI REPAYMENT - INSTALMENT 3/12 RECEIVED",
-                credit: 13150,
-                debit: 0,
-                ref: "EMI/GL000101/M3"
-            }
-        ];
-
-        for (const item of gl000101Items) {
-            await TransactionModel.create({
-                transaction_id: getTxId(),
-                transaction_date: item.date,
-                createdAt: item.date,
-                member_id: "BMS000101",
-                account_number: "GL000101",
-                account_type: "AGP007",
-                transaction_type: item.type,
-                description: item.desc,
-                credit: item.credit,
-                debit: item.debit || 0,
-                balance: 150000 - (item.type === "Loan Repayment" ? item.credit : 0),
-                Name: "Raghavendra Rao",
-                mobileno: "9845001101",
-                status: "Completed",
-                reference_no: item.ref,
-                is_loan_repayment: item.type === "Loan Repayment"
-            });
-        }
-        console.log(`   ✨ Generated Gold Loan transactions for GL000101`);
-
-        // --- Ledger 3: Deepa Nayak - Primary SB Account (SB000102) ---
-        const sb000102Items = [
-            {
-                date: new Date("2024-01-10T10:00:00Z"),
-                type: "Account Opening",
-                desc: "INITIAL ACCOUNT OPENING DEPOSIT",
-                credit: 5000,
-                debit: 0,
-                ref: "CSH/BR001/0210"
-            },
-            {
-                date: new Date("2024-01-25T15:30:00Z"),
-                type: "Salary Credit",
-                desc: "TEACHER SALARY CREDIT - GOVT HIGH SCHOOL UDUPI",
-                credit: 48000,
-                debit: 0,
-                ref: "TREASURY/EDU/202401"
-            },
-            {
-                date: new Date("2024-02-02T11:45:00Z"),
-                type: "UPI Transfer",
-                desc: "UPI/MORE SUPERMARKET UDUPI - GROCERIES",
-                credit: 0,
-                debit: 4200,
-                ref: "UPI/403310928341"
-            },
-            {
-                date: new Date("2024-02-15T16:00:00Z"),
-                type: "Transfer",
-                desc: "MONTHLY RD CONTRIBUTION TO RD000102",
-                credit: 0,
-                debit: 3000,
-                ref: "TRF/RD000102"
-            },
-            {
-                date: new Date("2024-02-25T15:30:00Z"),
-                type: "Salary Credit",
-                desc: "TEACHER SALARY CREDIT - GOVT HIGH SCHOOL UDUPI",
-                credit: 48000,
-                debit: 0,
-                ref: "TREASURY/EDU/202402"
-            },
-            {
-                date: new Date("2024-03-05T14:10:00Z"),
-                type: "Loan Repayment",
-                desc: "VEHICLE LOAN EMI AUTO-DEBIT - VL000102",
-                credit: 0,
-                debit: 7950,
-                ref: "EMI/VL000102"
-            },
-            {
-                date: new Date("2024-03-31T20:00:00Z"),
-                type: "Interest Credit",
-                desc: "QUARTERLY SAVINGS BANK INTEREST CREDIT",
-                credit: 680,
-                debit: 0,
-                ref: "SYS/SB/INT/Q4"
-            },
-            {
-                date: new Date("2024-04-05T14:10:00Z"),
-                type: "Loan Repayment",
-                desc: "VEHICLE LOAN EMI AUTO-DEBIT - VL000102",
-                credit: 0,
-                debit: 7950,
-                ref: "EMI/VL000102"
-            },
-            {
-                date: new Date("2024-05-05T14:10:00Z"),
-                type: "Loan Repayment",
-                desc: "VEHICLE LOAN EMI AUTO-DEBIT - VL000102",
-                credit: 0,
-                debit: 7950,
-                ref: "EMI/VL000102"
-            },
-            {
-                date: new Date("2024-06-05T14:10:00Z"),
-                type: "Loan Repayment",
-                desc: "VEHICLE LOAN EMI AUTO-DEBIT - VL000102",
-                credit: 0,
-                debit: 7950,
-                ref: "EMI/VL000102"
-            },
-            {
-                date: new Date("2024-07-20T17:00:00Z"),
-                type: "Cash Deposit",
-                desc: "CASH DEPOSIT BY BROTHER SATHISH NAYAK",
-                credit: 20000,
-                debit: 0,
-                ref: "CSH/BR001/0955",
-                collected_by: "Suresh Poojary"
-            }
-        ];
-
-        const count2 = await generateAccountLedger({
+        // --- 2. Ledger for Deepa Nayak (SB000102) --- 11 transactions
+        await generateAccountLedger({
             memberId: "BMS000102",
             memberName: "Deepa Nayak",
             mobile: "9845001102",
             accountNo: "SB000102",
             accountType: "AGP001",
             initialBalance: 0,
-            items: sb000102Items
+            items: [
+                { date: new Date("2024-01-10T10:00:00Z"), type: "Account Opening", desc: "INITIAL ACCOUNT OPENING DEPOSIT", credit: 5000, debit: 0, ref: "CSH/BR001/0210" },
+                { date: new Date("2024-01-25T15:30:00Z"), type: "Salary Credit", desc: "TEACHER SALARY CREDIT - GOVT HIGH SCHOOL UDUPI", credit: 48000, debit: 0, ref: "TREASURY/EDU/202401" },
+                { date: new Date("2024-02-02T11:45:00Z"), type: "UPI Transfer", desc: "UPI/MORE SUPERMARKET UDUPI - GROCERIES", credit: 0, debit: 4200, ref: "UPI/403310928341" },
+                { date: new Date("2024-02-15T16:00:00Z"), type: "Transfer", desc: "MONTHLY RD CONTRIBUTION TO RD000102", credit: 0, debit: 3000, ref: "TRF/RD000102" },
+                { date: new Date("2024-02-25T15:30:00Z"), type: "Salary Credit", desc: "TEACHER SALARY CREDIT - GOVT HIGH SCHOOL UDUPI", credit: 48000, debit: 0, ref: "TREASURY/EDU/202402" },
+                { date: new Date("2024-03-05T14:10:00Z"), type: "Loan Repayment", desc: "VEHICLE LOAN EMI AUTO-DEBIT - VL000102", credit: 0, debit: 7950, ref: "EMI/VL000102/M1" },
+                { date: new Date("2024-03-31T20:00:00Z"), type: "Interest Credit", desc: "QUARTERLY SAVINGS BANK INTEREST CREDIT", credit: 680, debit: 0, ref: "SYS/SB/INT/Q4" },
+                { date: new Date("2024-04-05T14:10:00Z"), type: "Loan Repayment", desc: "VEHICLE LOAN EMI AUTO-DEBIT - VL000102", credit: 0, debit: 7950, ref: "EMI/VL000102/M2" },
+                { date: new Date("2024-05-05T14:10:00Z"), type: "Loan Repayment", desc: "VEHICLE LOAN EMI AUTO-DEBIT - VL000102", credit: 0, debit: 7950, ref: "EMI/VL000102/M3" },
+                { date: new Date("2024-06-05T14:10:00Z"), type: "Loan Repayment", desc: "VEHICLE LOAN EMI AUTO-DEBIT - VL000102", credit: 0, debit: 7950, ref: "EMI/VL000102/M4" },
+                { date: new Date("2024-07-20T17:00:00Z"), type: "Cash Deposit", desc: "CASH DEPOSIT BY BROTHER SATHISH NAYAK", credit: 20000, debit: 0, ref: "CSH/BR001/0955" }
+            ]
         });
-        console.log(`   ✨ Generated ${count2} transactions for Deepa Nayak (SB000102)`);
 
-        // --- Ledger 4: Ganesh Prasad Shetty - Agri & Savings (SB000103) ---
-        const sb000103Items = [
-            {
-                date: new Date("2024-01-15T11:00:00Z"),
-                type: "Account Opening",
-                desc: "INITIAL ACCOUNT OPENING - AGRICULTURAL SAVINGS",
-                credit: 25000,
-                debit: 0,
-                ref: "CSH/BR001/0312"
-            },
-            {
-                date: new Date("2024-02-10T14:00:00Z"),
-                type: "Milk Union Credit",
-                desc: "DAIRY PROCEEDS CREDIT - D.K. CO-OPERATIVE MILK UNION (NANDINI)",
-                credit: 42500,
-                debit: 0,
-                ref: "NEFT/DKMUL/202402"
-            },
-            {
-                date: new Date("2024-03-01T10:15:00Z"),
-                type: "Areca Sale",
-                desc: "ARECANUT HARVEST SALE PROCEEDS - CAMPCO LTD MANGALURU",
-                credit: 125000,
-                debit: 0,
-                ref: "RTGS/CAMPCO/88912"
-            },
-            {
-                date: new Date("2024-03-20T16:30:00Z"),
-                type: "Cash Withdrawal",
-                desc: "CASH WITHDRAWAL FOR FERTILIZERS & LABOUR WAGES",
-                credit: 0,
-                debit: 35000,
-                ref: "WDL/BR001/0451",
-                collected_by: "Suresh Poojary"
-            },
-            {
-                date: new Date("2024-04-10T14:00:00Z"),
-                type: "Milk Union Credit",
-                desc: "DAIRY PROCEEDS CREDIT - D.K. CO-OPERATIVE MILK UNION (NANDINI)",
-                credit: 38200,
-                debit: 0,
-                ref: "NEFT/DKMUL/202404"
-            },
-            {
-                date: new Date("2024-05-15T12:00:00Z"),
-                type: "Loan Repayment",
-                desc: "AGRICULTURE LOAN HALF-YEARLY INTEREST & PRINCIPAL - AL000103",
-                credit: 0,
-                debit: 26000,
-                ref: "EMI/AL000103"
-            },
-            {
-                date: new Date("2024-06-30T20:00:00Z"),
-                type: "Interest Credit",
-                desc: "QUARTERLY SAVINGS BANK INTEREST CREDIT",
-                credit: 1850,
-                debit: 0,
-                ref: "SYS/SB/INT/Q1"
-            }
-        ];
-
-        const count3 = await generateAccountLedger({
+        // --- 3. Ledger for Ganesh Prasad Shetty (SB000103) ---
+        await generateAccountLedger({
             memberId: "BMS000103",
             memberName: "Ganesh Prasad Shetty",
             mobile: "9845001103",
             accountNo: "SB000103",
             accountType: "AGP001",
             initialBalance: 0,
-            items: sb000103Items
+            items: [
+                { date: new Date("2024-01-15T11:00:00Z"), type: "Account Opening", desc: "INITIAL ACCOUNT OPENING - AGRICULTURAL SAVINGS", credit: 25000, debit: 0, ref: "CSH/BR001/0312" },
+                { date: new Date("2024-02-10T14:00:00Z"), type: "Milk Union Credit", desc: "DAIRY PROCEEDS CREDIT - D.K. CO-OPERATIVE MILK UNION (NANDINI)", credit: 42500, debit: 0, ref: "NEFT/DKMUL/202402" },
+                { date: new Date("2024-03-01T10:15:00Z"), type: "Areca Sale", desc: "ARECANUT HARVEST SALE PROCEEDS - CAMPCO LTD MANGALURU", credit: 125000, debit: 0, ref: "RTGS/CAMPCO/88912" },
+                { date: new Date("2024-03-20T16:30:00Z"), type: "Cash Withdrawal", desc: "CASH WITHDRAWAL FOR FERTILIZERS & LABOUR WAGES", credit: 0, debit: 35000, ref: "WDL/BR001/0451" },
+                { date: new Date("2024-04-10T14:00:00Z"), type: "Milk Union Credit", desc: "DAIRY PROCEEDS CREDIT - D.K. CO-OPERATIVE MILK UNION (NANDINI)", credit: 38200, debit: 0, ref: "NEFT/DKMUL/202404" },
+                { date: new Date("2024-05-15T12:00:00Z"), type: "Loan Repayment", desc: "AGRICULTURE LOAN HALF-YEARLY INTEREST & PRINCIPAL - AL000103", credit: 0, debit: 26000, ref: "EMI/AL000103" },
+                { date: new Date("2024-06-30T20:00:00Z"), type: "Interest Credit", desc: "QUARTERLY SAVINGS BANK INTEREST CREDIT", credit: 1850, debit: 0, ref: "SYS/SB/INT/Q1" }
+            ]
         });
-        console.log(`   ✨ Generated ${count3} transactions for Ganesh Prasad Shetty (SB000103)`);
 
-        // --- Ledger 5: Ananya Adiga - Pigmy Daily Deposit (PIG000104) ---
-        const pig000104Items = [
-            {
-                date: new Date("2024-05-01T17:00:00Z"),
-                type: "Pigmy Collection",
-                desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)",
-                credit: 300,
-                debit: 0,
-                ref: "PIG/001/DAY01",
-                collected_by: "Ramesh Acharya"
-            },
-            {
-                date: new Date("2024-05-02T17:00:00Z"),
-                type: "Pigmy Collection",
-                desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)",
-                credit: 300,
-                debit: 0,
-                ref: "PIG/001/DAY02",
-                collected_by: "Ramesh Acharya"
-            },
-            {
-                date: new Date("2024-05-03T17:00:00Z"),
-                type: "Pigmy Collection",
-                desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)",
-                credit: 300,
-                debit: 0,
-                ref: "PIG/001/DAY03",
-                collected_by: "Ramesh Acharya"
-            },
-            {
-                date: new Date("2024-05-04T17:00:00Z"),
-                type: "Pigmy Collection",
-                desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)",
-                credit: 300,
-                debit: 0,
-                ref: "PIG/001/DAY04",
-                collected_by: "Ramesh Acharya"
-            },
-            {
-                date: new Date("2024-05-05T17:00:00Z"),
-                type: "Pigmy Collection",
-                desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)",
-                credit: 500,
-                debit: 0,
-                ref: "PIG/001/DAY05",
-                collected_by: "Ramesh Acharya"
-            },
-            {
-                date: new Date("2024-05-06T17:00:00Z"),
-                type: "Pigmy Collection",
-                desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)",
-                credit: 300,
-                debit: 0,
-                ref: "PIG/001/DAY06",
-                collected_by: "Ramesh Acharya"
-            },
-            {
-                date: new Date("2024-05-07T17:00:00Z"),
-                type: "Pigmy Collection",
-                desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)",
-                credit: 300,
-                debit: 0,
-                ref: "PIG/001/DAY07",
-                collected_by: "Ramesh Acharya"
-            },
-            {
-                date: new Date("2024-05-08T17:00:00Z"),
-                type: "Pigmy Collection",
-                desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)",
-                credit: 300,
-                debit: 0,
-                ref: "PIG/001/DAY08",
-                collected_by: "Ramesh Acharya"
-            },
-            {
-                date: new Date("2024-05-09T17:00:00Z"),
-                type: "Pigmy Collection",
-                desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)",
-                credit: 300,
-                debit: 0,
-                ref: "PIG/001/DAY09",
-                collected_by: "Ramesh Acharya"
-            },
-            {
-                date: new Date("2024-05-10T17:00:00Z"),
-                type: "Pigmy Collection",
-                desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)",
-                credit: 1000,
-                debit: 0,
-                ref: "PIG/001/DAY10",
-                collected_by: "Ramesh Acharya"
-            }
-        ];
-
-        const count4 = await generateAccountLedger({
+        // --- 4. Ledger for Ananya Adiga - Pigmy Account (PIG000104) ---
+        await generateAccountLedger({
             memberId: "BMS000104",
             memberName: "Ananya Adiga",
             mobile: "9845001104",
             accountNo: "PIG000104",
             accountType: "AGP005",
             initialBalance: 24600,
-            items: pig000104Items
+            items: [
+                { date: new Date("2024-05-01T17:00:00Z"), type: "Pigmy Collection", desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)", credit: 300, debit: 0, ref: "PIG/001/DAY01" },
+                { date: new Date("2024-05-02T17:00:00Z"), type: "Pigmy Collection", desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)", credit: 300, debit: 0, ref: "PIG/001/DAY02" },
+                { date: new Date("2024-05-03T17:00:00Z"), type: "Pigmy Collection", desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)", credit: 300, debit: 0, ref: "PIG/001/DAY03" },
+                { date: new Date("2024-05-04T17:00:00Z"), type: "Pigmy Collection", desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)", credit: 300, debit: 0, ref: "PIG/001/DAY04" },
+                { date: new Date("2024-05-05T17:00:00Z"), type: "Pigmy Collection", desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)", credit: 500, debit: 0, ref: "PIG/001/DAY05" },
+                { date: new Date("2024-05-06T17:00:00Z"), type: "Pigmy Collection", desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)", credit: 300, debit: 0, ref: "PIG/001/DAY06" },
+                { date: new Date("2024-05-07T17:00:00Z"), type: "Pigmy Collection", desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)", credit: 300, debit: 0, ref: "PIG/001/DAY07" },
+                { date: new Date("2024-05-08T17:00:00Z"), type: "Pigmy Collection", desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)", credit: 300, debit: 0, ref: "PIG/001/DAY08" },
+                { date: new Date("2024-05-09T17:00:00Z"), type: "Pigmy Collection", desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)", credit: 300, debit: 0, ref: "PIG/001/DAY09" },
+                { date: new Date("2024-05-10T17:00:00Z"), type: "Pigmy Collection", desc: "DAILY PIGMY COLLECTION - AGENT RAMESH ACHARYA (A20003)", credit: 1000, debit: 0, ref: "PIG/001/DAY10" }
+            ]
         });
-        console.log(`   ✨ Generated ${count4} daily Pigmy transactions for Ananya Adiga (PIG000104)`);
 
-        // --- Ledger 6: Praveen Kumar Poojary - Current Account (CA000105) ---
-        const ca000105Items = [
-            {
-                date: new Date("2024-01-05T09:30:00Z"),
-                type: "Current Deposit",
-                desc: "EXPORT FISH CONSIGNMENT PAYMENT - GOA HARBOUR DEALER",
-                credit: 250000,
-                debit: 0,
-                ref: "RTGS/GOA/20240105"
-            },
-            {
-                date: new Date("2024-01-18T14:20:00Z"),
-                type: "Cheque Clearing",
-                desc: "DIESEL FUEL PAYMENT - MALPE PORT FUEL OUTLET CHQ #77281",
-                credit: 0,
-                debit: 85000,
-                ref: "CHQ/77281"
-            },
-            {
-                date: new Date("2024-02-01T11:00:00Z"),
-                type: "Current Deposit",
-                desc: "SEAFOOD EXPORT SETTLEMENT - COCHIN SEAFOODS LTD",
-                credit: 380000,
-                debit: 0,
-                ref: "NEFT/COCHIN/8912"
-            },
-            {
-                date: new Date("2024-02-15T16:45:00Z"),
-                type: "Cheque Clearing",
-                desc: "BOAT MAINTENANCE & NET REPAIR CHQ #77282",
-                credit: 0,
-                debit: 60000,
-                ref: "CHQ/77282"
-            }
-        ];
-
-        const count5 = await generateAccountLedger({
+        // --- 5. Ledger for Praveen Poojary - Current Account (CA000105) ---
+        await generateAccountLedger({
             memberId: "BMS000105",
             memberName: "Praveen Kumar Poojary",
             mobile: "9845001105",
             accountNo: "CA000105",
             accountType: "AGP002",
             initialBalance: 0,
-            items: ca000105Items
+            items: [
+                { date: new Date("2024-01-05T09:30:00Z"), type: "Current Deposit", desc: "EXPORT FISH CONSIGNMENT PAYMENT - GOA HARBOUR DEALER", credit: 250000, debit: 0, ref: "RTGS/GOA/20240105" },
+                { date: new Date("2024-01-18T14:20:00Z"), type: "Cheque Clearing", desc: "DIESEL FUEL PAYMENT - MALPE PORT FUEL OUTLET CHQ #77281", credit: 0, debit: 85000, ref: "CHQ/77281" },
+                { date: new Date("2024-02-01T11:00:00Z"), type: "Current Deposit", desc: "SEAFOOD EXPORT SETTLEMENT - COCHIN SEAFOODS LTD", credit: 380000, debit: 0, ref: "NEFT/COCHIN/8912" },
+                { date: new Date("2024-02-15T16:45:00Z"), type: "Cheque Clearing", desc: "BOAT MAINTENANCE & NET REPAIR CHQ #77282", credit: 0, debit: 60000, ref: "CHQ/77282" }
+            ]
         });
-        console.log(`   ✨ Generated ${count5} Current Account transactions for Praveen Poojary (CA000105)`);
+
+        // --- 6. Generate 6 to 10 automated transactions for members 6 to 25 ---
+        for (let idx = 6; idx <= 25; idx++) {
+            const m = rawMembers[idx - 1];
+            const sbAccNo = `SB000${String(100 + idx)}`;
+            const baseAmt = 30000 + (idx * 4500);
+
+            const txList = [
+                {
+                    date: new Date(`2024-01-${String(Math.min(idx, 28)).padStart(2, '0')}T10:00:00Z`),
+                    type: "Account Opening",
+                    desc: "INITIAL ACCOUNT OPENING DEPOSIT - CASH",
+                    credit: baseAmt,
+                    debit: 0,
+                    ref: `CSH/BR00${(idx % 5) + 1}/${String(idx).padStart(4, '0')}`
+                },
+                {
+                    date: new Date(`2024-02-10T14:30:00Z`),
+                    type: "Credit Transfer",
+                    desc: `BUSINESS PROCEEDS - ${m.occupation.toUpperCase()} RECEIPTS`,
+                    credit: 45000,
+                    debit: 0,
+                    ref: `NEFT/BMS/${getTxId().substring(0, 10)}`
+                },
+                {
+                    date: new Date(`2024-02-25T11:15:00Z`),
+                    type: "ATM Withdrawal",
+                    desc: `ATM CASH WITHDRAWAL - ${m.city.toUpperCase()} ATM`,
+                    credit: 0,
+                    debit: 10000,
+                    ref: `ATM/${m.city.substring(0, 3).toUpperCase()}/${Math.floor(1000 + Math.random() * 9000)}`
+                },
+                {
+                    date: new Date(`2024-03-31T20:00:00Z`),
+                    type: "Interest Credit",
+                    desc: "QUARTERLY SAVINGS INTEREST CREDIT - Q4 23-24",
+                    credit: Math.round(baseAmt * 0.01),
+                    debit: 0,
+                    ref: "SYS/SB/INT/Q4"
+                },
+                {
+                    date: new Date(`2024-05-15T16:00:00Z`),
+                    type: "UPI Transfer",
+                    desc: `UPI/LOCAL MERCHANT AT ${m.city.toUpperCase()}`,
+                    credit: 0,
+                    debit: 3500,
+                    ref: `UPI/${getTxId().substring(4, 16)}`
+                },
+                {
+                    date: new Date(`2024-06-30T20:00:00Z`),
+                    type: "Interest Credit",
+                    desc: "QUARTERLY SAVINGS INTEREST CREDIT - Q1 24-25",
+                    credit: Math.round(baseAmt * 0.011),
+                    debit: 0,
+                    ref: "SYS/SB/INT/Q1"
+                }
+            ];
+
+            await generateAccountLedger({
+                memberId: m.id,
+                memberName: m.name,
+                mobile: m.mobile,
+                accountNo: sbAccNo,
+                accountType: "AGP001",
+                initialBalance: 0,
+                items: txList
+            });
+        }
+        console.log(`   ✨ Generated full transaction ledgers across all 25 member operating accounts.`);
+
+        // --- 7. Also create loan repayment entries for each of the 25 loans ---
+        for (let lIdx = 1; lIdx <= 25; lIdx++) {
+            const loanItem = accountsList.find(a => a.id === `LOAN000${String(100 + lIdx)}`);
+            if (loanItem) {
+                const memInfo = rawMembers.find(m => m.id === loanItem.mem);
+                const emiAmount = Math.round(loanItem.amt / (loanItem.duration || 12));
+
+                await TransactionModel.create({
+                    transaction_id: getTxId(),
+                    transaction_date: new Date("2024-02-15T11:00:00Z"),
+                    createdAt: new Date("2024-02-15T11:00:00Z"),
+                    member_id: loanItem.mem,
+                    account_number: loanItem.no,
+                    account_type: loanItem.type,
+                    transaction_type: "Loan Sanction",
+                    description: `LOAN SANCTIONED - ${loanItem.notes}`,
+                    credit: loanItem.amt,
+                    debit: 0,
+                    balance: loanItem.amt,
+                    Name: memInfo?.name || "Member",
+                    mobileno: memInfo?.mobile || "",
+                    status: "Completed",
+                    reference_no: `LN/SANC/${loanItem.no}`
+                });
+
+                // Add 2 monthly repayments
+                await TransactionModel.create({
+                    transaction_id: getTxId(),
+                    transaction_date: new Date("2024-03-15T12:00:00Z"),
+                    createdAt: new Date("2024-03-15T12:00:00Z"),
+                    member_id: loanItem.mem,
+                    account_number: loanItem.no,
+                    account_type: loanItem.type,
+                    transaction_type: "Loan Repayment",
+                    description: `MONTHLY EMI REPAYMENT - INSTALMENT 1/${loanItem.duration || 12}`,
+                    credit: emiAmount,
+                    debit: 0,
+                    balance: loanItem.amt - emiAmount,
+                    Name: memInfo?.name || "Member",
+                    mobileno: memInfo?.mobile || "",
+                    status: "Completed",
+                    reference_no: `EMI/${loanItem.no}/M1`,
+                    is_loan_repayment: true
+                });
+
+                await TransactionModel.create({
+                    transaction_id: getTxId(),
+                    transaction_date: new Date("2024-04-15T12:00:00Z"),
+                    createdAt: new Date("2024-04-15T12:00:00Z"),
+                    member_id: loanItem.mem,
+                    account_number: loanItem.no,
+                    account_type: loanItem.type,
+                    transaction_type: "Loan Repayment",
+                    description: `MONTHLY EMI REPAYMENT - INSTALMENT 2/${loanItem.duration || 12}`,
+                    credit: emiAmount,
+                    debit: 0,
+                    balance: loanItem.amt - (emiAmount * 2),
+                    Name: memInfo?.name || "Member",
+                    mobileno: memInfo?.mobile || "",
+                    status: "Completed",
+                    reference_no: `EMI/${loanItem.no}/M2`,
+                    is_loan_repayment: true
+                });
+            }
+        }
+        console.log(`   ✨ Generated Sanction & EMI transactions for all 25 Loans.`);
 
         // ---------------------------------------------------------------------
         // SUMMARY & CREDENTIALS
         // ---------------------------------------------------------------------
-        console.log("\n=========================================================");
-        console.log("🎉 DEMO DATA SEEDED SUCCESSFULLY FOR UDUPI CO-OP BANK!");
-        console.log("=========================================================");
-        console.log("\n📋 DEMO LOGIN CREDENTIALS:\n");
-        console.log("🔹 ADMIN LOGIN:");
-        console.log("   Username : admin");
-        console.log("   Password : admin123 (or existing admin password)");
-        console.log("   Role     : ADMIN\n");
-
-        console.log("🔹 FIELD AGENT LOGINS (Password: password123):");
-        console.log("   1. Suresh Poojary    | Agent ID: A20002 | Branch: Udupi Main  | Mobile: 9845112233");
-        console.log("   2. Ramesh Acharya    | Agent ID: A20003 | Branch: Manipal     | Mobile: 9845223344 (Pigmy Agent)");
-        console.log("   3. Manjunath Hegde   | Agent ID: A20004 | Branch: Kundapura   | Mobile: 9845334455");
-        console.log("   4. Suma Kulal        | Agent ID: A20005 | Branch: Mangaluru   | Mobile: 9845445566");
-        console.log("   5. Venkatesh Bhat    | Agent ID: A20006 | Branch: Karkala     | Mobile: 9845556677\n");
-
-        console.log("🔹 MEMBER / USER LOGINS (Password: password123):");
-        console.log("   1. Raghavendra Rao   | Member ID: BMS000101 | SB: SB000101 | Loans: GL000101 (Gold Loan)  | FD: FD000101 | RD: RD000101");
-        console.log("   2. Deepa Nayak       | Member ID: BMS000102 | SB: SB000102 | Loans: VL000102 (Vehicle)    | RD: RD000102");
-        console.log("   3. Ganesh P. Shetty  | Member ID: BMS000103 | SB: SB000103 | Loans: AL000103 (Agri Loan)  | FD: FD000102");
-        console.log("   4. Ananya Adiga      | Member ID: BMS000104 | SB: SB000104 | CA: CA000104                 | Pigmy: PIG000104");
-        console.log("   5. Praveen K Poojary | Member ID: BMS000105 | SB: SB000105 | CA: CA000105                 | Loans: PL000105 (Personal)");
-        console.log("   6. Geetha Kudva      | Member ID: BMS000106 | SB: SB000106 | FD: FD000103 (Senior Citizen)");
-        console.log("   7. Dinesh Kamath     | Member ID: BMS000107 | SB: SB000107 | CA: CA000107                 | Loans: BL000107 (Business)");
-        console.log("   8. Ashwath N. Bhat   | Member ID: BMS000108 | SB: SB000108");
-        console.log("\n=========================================================");
+        console.log("\n=====================================================================");
+        console.log("🎉 COMPREHENSIVE DATA (25 MEMBERS, 25 LOANS) SEEDED SUCCESSFULLY!");
+        console.log("=====================================================================");
+        console.log("\n📋 DATA SUMMARY:");
+        console.log("   • Branches         : 5 (Udupi, Manipal, Kundapura, Mangaluru, Karkala)");
+        console.log("   • Field Agents     : 8 Active Agents");
+        console.log("   • Members / Users  : 25 Active Members (BMS000101 to BMS000125)");
+        console.log("   • Loans            : 25 Sanctioned Loans with EMI history (GL, VL, AL, BL, PL, ML, EL, OD, PGL, PGLD)");
+        console.log("   • Accounts         : 50+ Accounts (SB, CA, FD, RD, PIGMY)");
+        console.log("   • Passbook Entries : Multi-page transactions with running balance calculations");
+        console.log("\n🔑 LOGIN CREDENTIALS (Default password for all: password123):");
+        console.log("   • Admin Logins     : 'admin' / 'admin01' (Password: existing admin password / admin123)");
+        console.log("   • Agent Logins     : A20002 to A20009 (e.g. A20002 / password123)");
+        console.log("   • Member Logins    : BMS000101 to BMS000125 (e.g. BMS000101 / password123)");
+        console.log("=====================================================================\n");
 
         await mongoose.disconnect();
         console.log("✅ MongoDB disconnected cleanly.");
